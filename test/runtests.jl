@@ -1,5 +1,6 @@
 using Test
+using SafeTestsets
 
-@testset "Minx.jl" begin
+@safetestset "Minx.jl" begin
     include("test_main.jl")
 end

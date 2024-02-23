@@ -1,4 +1,3 @@
-using LaTeXStrings
 using Printf
 
 function remainder(f, df, x, eps)
@@ -10,7 +9,7 @@ end
 
 function remainder_test(f, df, x)
     nsteps = 8
-    dx = map(x -> 0.01 / 2^(x-1), 1:nsteps)
+    dx = map(x -> 0.01 / 2^(x - 1), 1:nsteps)
     errors = map(dx -> remainder(f, df, x, dx), dx)
     return dx, errors
 end
@@ -18,8 +17,8 @@ end
 function convergence_rates(xs, ys)
     rates = []
     for i = 2:length(xs)
-        dx = log(abs(xs[i] / xs[i - 1]))
-        dy = log(abs(ys[i] / ys[i - 1]))
+        dx = log(abs(xs[i] / xs[i-1]))
+        dy = log(abs(ys[i] / ys[i-1]))
         push!(rates, dy / dx)
     end
     return rates
