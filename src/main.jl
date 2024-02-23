@@ -1,34 +1,48 @@
 using Printf
+using LinearAlgebra
 
-function remainder(f, df, x, eps)
-    Jp = f(x + eps)
-    Jx = f(x)
-    dJdx = df(x)
-    return abs(Jp - Jx - eps * dJdx)
+export Mesh, elements, element_matrix
+export fix!, solve, measure, calculate_error
+
+struct Mesh
+    nelx::Int
 end
 
-function remainder_test(f, df, x)
-    nsteps = 8
-    dx = map(x -> 0.01 / 2^(x - 1), 1:nsteps)
-    errors = map(dx -> remainder(f, df, x, dx), dx)
-    return dx, errors
+elements(mesh) = 1:mesh.nelx
+measure(mesh) = [0; 1 / mesh.nelx]
+
+function element_matrix(mesh)
+    b = [-1, 1]
+    J = b' * measure(mesh)
+    B = inv(J) * b
+    D = Matrix(I, 1, 1)
+    return det(J) * B * D * B'
 end
 
-function convergence_rates(xs, ys)
-    rates = []
-    for i = 2:length(xs)
-        dx = log(abs(xs[i] / xs[i-1]))
-        dy = log(abs(ys[i] / ys[i-1]))
-        push!(rates, dy / dx)
-    end
-    return rates
+
+function dofs!(array, ix)
+    array[1] = ix
+    array[2] = ix + 1
 end
 
-function check_sensitivity(f, df, x)
-    deltas, errors = remainder_test(f, df, x)
-    rates = convergence_rates(deltas, errors)
-    @printf("%12s,%12s,%12s\n", "Delta", "Error", "Rate")
-    for (d, e, r) in zip(deltas, errors, rates)
-        @printf("%12.3e,%12.3e,%12.3e\n", d, e, r)
-    end
+function solve(mesh, forcing)
+    Ke = element_matrix(mesh)
+    K = assemble(mesh, Ke)
+    f = integrate(mesh, forcing)
+    fix!(K, f)
+    u = K \ f
+    return u
+end
+
+
+function fix!(K, F)
+    # TODO Accept points/regions to fix.
+    K[1, :] .= 0
+    K[:, 1] .= 0
+    K[1, 1] = 1
+    K[end, :] .= 0
+    K[:, end] .= 0
+    K[end, end] = 1
+    F[1] = 0
+    F[end] = 0
 end
