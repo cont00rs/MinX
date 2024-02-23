@@ -4,7 +4,6 @@ authors = ["cont00rs"]
 version = "1.0.0-DEV"
 
 [deps]
-GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 

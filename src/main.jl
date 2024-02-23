@@ -1,7 +1,5 @@
 using LaTeXStrings
-using GLMakie
 using Printf
-
 
 function remainder(f, df, x, eps)
     Jp = f(x + eps)
@@ -34,25 +32,4 @@ function check_sensitivity(f, df, x)
     for (d, e, r) in zip(deltas, errors, rates)
         @printf("%12.3e,%12.3e,%12.3e\n", d, e, r)
     end
-end
-
-function plot_convergence_rates(f, df, x)
-    xs, ys = remainder_test(f, df, x)
-    plot_convergence_rates(xs, ys)
-end
-
-function plot_convergence_rates(xs, ys)
-    target_slope = map(x -> (x/2)^2, xs)
-
-    # Plotting with Makie.jl
-    f = Figure()
-    Axis(f[1,1], xscale=log10, yscale=log10,
-         xlabel=L"\Delta x", ylabel=L"R")
-
-    # Needs both `scatterlines!` to properly cycle colors;
-    # Using `lines!` for the slope ends up same color...
-    scatterlines!(xs, ys, label=L"R(f)")
-    scatterlines!(xs, target_slope, label=L"\Delta 2", markersize=0)
-    axislegend()
-    f
 end
