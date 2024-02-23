@@ -2,8 +2,6 @@ using LaTeXStrings
 using GLMakie
 using Printf
 
-g(x) = sin(x)
-dg(x) = cos(x)
 
 function remainder(f, df, x, eps)
     Jp = f(x + eps)
