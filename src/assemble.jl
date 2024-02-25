@@ -19,16 +19,16 @@ function tile!(array, entries)
 end
 
 # Assemble the global 'stiffness' matrix.
-function assemble(mesh, Ke)
+# TODO Figure out memory reuse for sparse matrix.
+function assemble(mesh, element)
+    Ke = stencil(element)
     nnz = length(Ke) * length(elements(mesh))
 
-    # TODO Figure out memory reuse for sparse matrix.
     rows = zeros(Int, nnz)
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
-    # TODO Extract dof vector size from helper routine.
-    dofs = zeros(Int, 2)
+    dofs = zeros(Int, length(shape_fn(element)))
 
     for (i, el) in enumerate(elements(mesh))
         # TODO Dispatch on element type.
@@ -44,25 +44,22 @@ function assemble(mesh, Ke)
 end
 
 # Assemble some function onto mesh nodes
-function integrate(mesh, fun)
-    dofs = zeros(Int, 2)
+function integrate(mesh, element, fun)
+    N = shape_fn(element)
+    dofs = zeros(Int, length(N))
     nnz = length(dofs) * length(elements(mesh))
-
-    dx = 1 / mesh.nelx
+    dx = measure(element)
 
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
-    # TODO Extract shape function from helper.
-    N = [0.5, 0.5]
-
     for (i, el) in enumerate(elements(mesh))
         @views dofs!(dofs, el)
 
-        # TODO This should accept some real coordinates.
         slice = (1+(i-1)*length(dofs)):i*length(dofs)
         cols[slice] = dofs
 
+        # TODO This should accept some real coordinates.
         xco = mean(dx * (dofs .- 1))
         vals[slice] = N * fun(xco) * dx
     end
@@ -71,10 +68,10 @@ function integrate(mesh, fun)
 end
 
 # Interpolate some function onto quadrature points
-function interpolate(mesh, fun)
+function interpolate(mesh, element, fun)
     interp = zeros(length(elements(mesh)))
-    dofs = zeros(Int, 2)
-    dx = 1 / mesh.nelx
+    dofs = zeros(Int, length(shape_fn(element)))
+    dx = measure(element)
     for (i, el) in enumerate(elements(mesh))
         @views dofs!(dofs, el)
         xco = mean(dx * (dofs .- 1))
@@ -84,11 +81,10 @@ function interpolate(mesh, fun)
 end
 
 # Interpolate a state vector onto quadrature points
-function interpolate(mesh, state::AbstractVector)
+function interpolate(mesh, element, state::AbstractVector)
     interp = zeros(length(elements(mesh)))
-    dofs = zeros(Int, 2)
-    dx = 1 / mesh.nelx
-    N = [0.5, 0.5]
+    N = shape_fn(element)
+    dofs = zeros(Int, length(N))
     for (i, el) in enumerate(elements(mesh))
         @views dofs!(dofs, el)
         interp[i] = dot(N, state[dofs])
@@ -97,16 +93,12 @@ function interpolate(mesh, state::AbstractVector)
 end
 
 # Generate derivative of state ate quadrature points
-function derivative(mesh, state)
-    dofs = zeros(Int, 2)
-    dx = 1 / mesh.nelx
-    N = [0.5, 0.5]
-    B = [-1, 1]
-    J = B' * measure(mesh)
-    B = B * inv(J)
+function derivative(mesh, element, state)
+    B = shape_dfn(element)
+    dofs = zeros(Int, length(shape_fn(element)))
+    dx = measure(element)
 
     du = zeros(length(elements(mesh)))
-
     for (i, el) in enumerate(elements(mesh))
         @views dofs!(dofs, el)
         xco = mean(dx * (dofs .- 1))

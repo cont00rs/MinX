@@ -53,17 +53,18 @@ function convergence_rate(forcing, f, df)
     energy_norm = zeros(length(nels))
 
     for (i, nel) in enumerate(nels)
-        m = Mesh(nel)
-        u = solve(m, forcing)
+        mesh = Mesh(nel)
+        Ke = element_matrix(mesh)
+        u = solve(mesh, Ke, forcing)
         dxs[i] = 1 / nel
 
         # L2 norm
-        u_exact = interpolate(m, f)
-        u_h = interpolate(m, u)
+        u_exact = interpolate(mesh, Ke, f)
+        u_h = interpolate(mesh, Ke, u)
 
         # energy norm
-        du_exact = interpolate(m, df)
-        du_h = derivative(m, u)
+        du_exact = interpolate(mesh, Ke, df)
+        du_h = derivative(mesh, Ke, u)
 
         l2_norm[i] = sqrt(sum((u_exact - u_h) .^ 2) / sum(u_exact .^ 2))
         energy_norm[i] = sqrt(sum((du_exact - du_h) .^ 2) / sum(du_exact .^ 2))
