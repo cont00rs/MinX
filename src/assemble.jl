@@ -6,19 +6,15 @@ export assemble, integrate, interpolate, derivative
 
 function repeat!(array, entries)
     n = div(length(array), length(entries))
-    i = 1
-    for entry in entries
-        for _ = 1:n
-            array[i] = entry
-            i += 1
-        end
+    for i = 1:n
+        array[i:n:end] = entries
     end
 end
 
 function tile!(array, entries)
     n = div(length(array), length(entries))
-    for i = 1:n
-        array[1+(i-1)*length(entries):i*length(entries)] = entries
+    for (i, entry) in enumerate(entries)
+        array[i:length(entries):end] .= entry
     end
 end
 
