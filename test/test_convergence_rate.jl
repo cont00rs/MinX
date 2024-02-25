@@ -7,9 +7,9 @@ using MinX
     # - unit material properties
 
     omega = 2pi
-    forcing(x) = sin(omega * x) * omega^2
-    solution(x) = sin(omega * x)
-    dsolution(x) = cos(omega * x) * omega
+    forcing(xyz) = sin(omega * xyz[1]) * omega^2
+    solution(xyz) = sin(omega * xyz[1])
+    dsolution(xyz) = cos(omega * xyz[1]) * omega
 
     delta, l2, energy = MinX.convergence_rate(forcing, solution, dsolution)
     @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01

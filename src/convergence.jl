@@ -53,7 +53,7 @@ function convergence_rate(forcing, f, df)
     energy_norm = zeros(length(nels))
 
     for (i, nel) in enumerate(nels)
-        mesh = Mesh(nel)
+        mesh = Mesh((1,), (nel,))
         Ke = element_matrix(mesh)
         u = solve(mesh, Ke, forcing)
         dxs[i] = 1 / nel

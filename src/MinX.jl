@@ -4,5 +4,6 @@ include("assemble.jl")
 include("convergence.jl")
 include("element.jl")
 include("main.jl")
+include("mesh.jl")
 
 end

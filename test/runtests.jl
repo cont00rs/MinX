@@ -5,4 +5,5 @@ using SafeTestsets
     include("test_assemble.jl")
     include("test_convergence_rate.jl")
     include("test_main.jl")
+    include("test_mesh.jl")
 end

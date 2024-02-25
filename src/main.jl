@@ -1,19 +1,18 @@
-using Printf
 using LinearAlgebra
 
-export Mesh
-export fix!, solve, measure, calculate_error
+export fix!, solve, calculate_error
 
-struct Mesh
-    nelx::Int
+# TODO: Add dispatch on basis type, e.g. P1, P2.
+# TODO: Extend dispatch for 2D, i.e. add element::NTuple{2,T}.
+function dofs!(array::AbstractVector{T}, ijk::NTuple{1,T}) where {T}
+    array[1] = ijk[1]
+    array[2] = ijk[1] + 1
 end
 
-elements(mesh) = 1:mesh.nelx
-measure(mesh) = [0; 1 / mesh.nelx]
-
-function dofs!(array, ix)
-    array[1] = ix
-    array[2] = ix + 1
+# TODO: For 2D problems xyz should be a matrix, 4 points, 2 coords.
+function coords!(xyz::AbstractVector, mesh, ijk::NTuple{1,T}) where {T}
+    xyz[1] = mesh.dx[1] * (ijk[1] - 1)
+    xyz[2] = mesh.dx[1] * ijk[1]
 end
 
 function solve(mesh, Ke, forcing)

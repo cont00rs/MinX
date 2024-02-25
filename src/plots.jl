@@ -28,7 +28,7 @@ function plot_convergence_rates(xs::AbstractVector, ys::AbstractVector, slope)
 end
 
 function plot_solution(nelem)
-    mesh = MinX.Mesh(nelem)
+    mesh = MinX.Mesh((1,), (nelem,))
     u = MinX.solve(mesh, MinX.forcing)
 
     f = Figure()
@@ -45,7 +45,7 @@ end
 
 function plot_dsolution(nelem)
 
-    mesh = MinX.Mesh(nelem)
+    mesh = MinX.Mesh((1,), (nelem,))
     u = MinX.solve(mesh, MinX.forcing)
     duh, due = derivative(mesh, u, MinX.dsolution)
 

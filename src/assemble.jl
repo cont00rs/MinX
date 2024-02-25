@@ -31,7 +31,6 @@ function assemble(mesh, element)
     dofs = zeros(Int, length(shape_fn(element)))
 
     for (i, el) in enumerate(elements(mesh))
-        # TODO Dispatch on element type.
         @views dofs!(dofs, el)
 
         slice = (1+(i-1)*length(Ke)):i*length(Ke)
@@ -47,6 +46,7 @@ end
 function integrate(mesh, element, fun)
     N = shape_fn(element)
     dofs = zeros(Int, length(N))
+    xyz = zeros(Float64, length(N))
     nnz = length(dofs) * length(elements(mesh))
     dx = measure(element)
 
@@ -59,9 +59,8 @@ function integrate(mesh, element, fun)
         slice = (1+(i-1)*length(dofs)):i*length(dofs)
         cols[slice] = dofs
 
-        # TODO This should accept some real coordinates.
-        xco = mean(dx * (dofs .- 1))
-        vals[slice] = N * fun(xco) * dx
+        coords!(xyz, mesh, el)
+        vals[slice] = N * fun(N * xyz) * dx
     end
 
     F = Vector(sparsevec(cols, vals))
@@ -70,12 +69,12 @@ end
 # Interpolate some function onto quadrature points
 function interpolate(mesh, element, fun)
     interp = zeros(length(elements(mesh)))
-    dofs = zeros(Int, length(shape_fn(element)))
+    N = shape_fn(element)
+    xyz = zeros(Float64, length(N))
     dx = measure(element)
     for (i, el) in enumerate(elements(mesh))
-        @views dofs!(dofs, el)
-        xco = mean(dx * (dofs .- 1))
-        interp[i] = fun(xco)
+        coords!(xyz, mesh, el)
+        interp[i] = fun(N * xyz)
     end
     return interp
 end
@@ -92,18 +91,15 @@ function interpolate(mesh, element, state::AbstractVector)
     return interp
 end
 
-# Generate derivative of state ate quadrature points
+# Generate derivative of state at quadrature points
 function derivative(mesh, element, state)
     B = shape_dfn(element)
     dofs = zeros(Int, length(shape_fn(element)))
-    dx = measure(element)
-
     du = zeros(length(elements(mesh)))
     for (i, el) in enumerate(elements(mesh))
         @views dofs!(dofs, el)
-        xco = mean(dx * (dofs .- 1))
+        # XXX: Remove dot for higher dim/vector problems?
         du[i] = dot(B, state[dofs])
     end
-
     return du
 end
