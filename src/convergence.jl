@@ -55,14 +55,20 @@ function convergence_rate(forcing, f, df)
     for (i, nel) in enumerate(nels)
         mesh = Mesh((1,), (nel,))
         Ke = element_matrix(mesh)
-        u = solve(mesh, Ke, forcing)
+
+        fixed = prescribe(mesh, x -> (isapprox(x, 0) || isapprox(x, 1)))
+
+        # Obtain solution field.
+        u = solve(mesh, Ke, forcing, fixed)
+
+        # TODO: Update equivalent mesh size for higher dimensions.
         dxs[i] = 1 / nel
 
-        # L2 norm
+        # L2 norm.
         u_exact = interpolate(mesh, Ke, f)
         u_h = interpolate(mesh, Ke, u)
 
-        # energy norm
+        # Energy norm.
         du_exact = interpolate(mesh, Ke, df)
         du_h = derivative(mesh, Ke, u)
 

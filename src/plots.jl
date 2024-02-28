@@ -37,12 +37,13 @@ dsolution(xyz) = cos(omega * xyz[1]) * omega
 function plot_solution(nelem)
     mesh = MinX.Mesh((1,), (nelem,))
     Ke = element_matrix(mesh)
-    u = MinX.solve(mesh, Ke, forcing)
+    fixed = prescribe(mesh, x -> (isapprox(x, 0) || isapprox(x, 1)))
+    u = MinX.solve(mesh, Ke, forcing, fixed)
 
     f = Figure()
     Axis(f[1, 1], xlabel = L"x", ylabel = L"T(x)")
 
-    xs = collect(0:nelem) .* MinX.measure(Ke)
+    xs = [xyz[1] for xyz in coords(mesh)]
     scatterlines!(xs, solution, label = "Analytical", markersize = 0)
     scatterlines!(xs, u, label = "Numerical")
     axislegend()
@@ -52,7 +53,8 @@ end
 function plot_dsolution(nelem)
     mesh = MinX.Mesh((1,), (nelem,))
     Ke = element_matrix(mesh)
-    u = MinX.solve(mesh, Ke, forcing)
+    fixed = prescribe(mesh, x -> (isapprox(x, 0) || isapprox(x, 1)))
+    u = MinX.solve(mesh, Ke, forcing, fixed)
     du = derivative(mesh, Ke, u)
 
     f = Figure()

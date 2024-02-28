@@ -43,10 +43,10 @@ function assemble(mesh, element)
 end
 
 # Assemble some function onto mesh nodes
-function integrate(mesh, element, fun)
+function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     N = shape_fn(element)
     dofs = zeros(Int, length(N))
-    xyz = zeros(Float64, length(N))
+    xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
     dx = measure(element)
 
@@ -67,10 +67,10 @@ function integrate(mesh, element, fun)
 end
 
 # Interpolate some function onto quadrature points
-function interpolate(mesh, element, fun)
+function interpolate(mesh::Mesh{Dim}, element, fun) where {Dim}
     interp = zeros(length(elements(mesh)))
     N = shape_fn(element)
-    xyz = zeros(Float64, length(N))
+    xyz = zeros(Float64, length(N), Dim)
     dx = measure(element)
     for (i, el) in enumerate(elements(mesh))
         coords!(xyz, mesh, el)
@@ -80,7 +80,7 @@ function interpolate(mesh, element, fun)
 end
 
 # Interpolate a state vector onto quadrature points
-function interpolate(mesh, element, state::AbstractVector)
+function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim}
     interp = zeros(length(elements(mesh)))
     N = shape_fn(element)
     dofs = zeros(Int, length(N))
