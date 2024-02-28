@@ -23,7 +23,7 @@ stencil(element) = element.K
 # TODO: Convert to proper struct constructor?
 function element_matrix(mesh)
     # Shape fun
-    N = [0.5  0.5]
+    N = [0.5 0.5]
     # Shape fun derivative
     b = [-1, 1]
     J = b' * measure(mesh)

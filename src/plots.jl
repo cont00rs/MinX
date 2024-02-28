@@ -27,38 +27,41 @@ function plot_convergence_rates(xs::AbstractVector, ys::AbstractVector, slope)
     f
 end
 
+# These are defined solely for plotting purposes. At some time the plots will
+# be handled differently and should probably be moved to example files.
+omega = 2pi
+forcing(xyz) = sin(omega * xyz[1]) * omega^2
+solution(xyz) = sin(omega * xyz[1])
+dsolution(xyz) = cos(omega * xyz[1]) * omega
+
 function plot_solution(nelem)
     mesh = MinX.Mesh((1,), (nelem,))
-    u = MinX.solve(mesh, MinX.forcing)
+    Ke = element_matrix(mesh)
+    u = MinX.solve(mesh, Ke, forcing)
 
     f = Figure()
     Axis(f[1, 1], xlabel = L"x", ylabel = L"T(x)")
 
-    dx = 1 / nelem
-    xs = collect(0:nelem) .* dx
-
-    scatterlines!(0:0.01:1, MinX.solution, label = "Analytical", markersize = 0)
+    xs = collect(0:nelem) .* MinX.measure(Ke)
+    scatterlines!(xs, solution, label = "Analytical", markersize = 0)
     scatterlines!(xs, u, label = "Numerical")
     axislegend()
     f
 end
 
 function plot_dsolution(nelem)
-
     mesh = MinX.Mesh((1,), (nelem,))
-    u = MinX.solve(mesh, MinX.forcing)
-    duh, due = derivative(mesh, u, MinX.dsolution)
+    Ke = element_matrix(mesh)
+    u = MinX.solve(mesh, Ke, forcing)
+    du = derivative(mesh, Ke, u)
 
     f = Figure()
     Axis(f[1, 1], xlabel = L"x", ylabel = L"T(x)")
 
-    xs = collect(1:nelem)
-
-    display(length(xs))
-    display(length(duh))
-
-    scatterlines!(xs, duh, label = "Numerical")
-    scatterlines!(xs, due, label = "Analytic")
+    # TODO: This should probably be retrieved through the mesh/basis.
+    xs = collect(1:nelem) .* MinX.measure(Ke)
+    scatterlines!(xs, dsolution, label = "Analytic", markersize = 0)
+    scatterlines!(xs, du, label = "Numerical")
     axislegend()
     f
 end

@@ -23,7 +23,7 @@ end
 
 # Iterator over mesh elements using tuple of (i, j, k) indexing.
 function elements(mesh::Mesh)
-    return Base.product(map(x->UnitRange(1,x), mesh.nelems)...)
+    return Base.product(map(x -> UnitRange(1, x), mesh.nelems)...)
 end
 
 measure(mesh::Mesh{1}) = [0; mesh.dx[1]]
