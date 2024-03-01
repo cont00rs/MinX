@@ -36,12 +36,12 @@ function element_matrix(mesh::Mesh{Dim}) where {Dim}
     # Shape fun
     N = shape_function(Dim)
     # Shape fun derivative
-    b = [-1, 1]
-    J = b' * measure(mesh)
+    b = [-1 1]
+    J = b * measure(mesh)
     B = inv(J) * b
     # Constitutive
     D = Matrix(I, 1, 1)
     # Element matrix
-    K = det(J) * B * D * B'
+    K = det(J) * B' * D * B
     return Element(N, B, J, D, K)
 end

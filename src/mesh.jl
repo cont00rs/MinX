@@ -32,4 +32,4 @@ function nodes(mesh::Mesh)
     Base.product(map(x -> UnitRange(1, x + 1), mesh.nelems)...)
 end
 
-measure(mesh::Mesh{1}) = [0; mesh.dx[1]]
+measure(mesh::Mesh{1}) = [0; mesh.dx[1];;]
