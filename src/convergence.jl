@@ -43,7 +43,7 @@ function check_convergence_rate(deltas, errors)
 end
 
 # TODO forcing should become a problem description of some sort
-function convergence_rate(forcing, f, df)
+function convergence_rate(forcing, boundary, f, df)
     nsteps = 8
 
     nels = map(i -> 10 * 2^(i - 1), 1:nsteps)
@@ -56,13 +56,14 @@ function convergence_rate(forcing, f, df)
         mesh = Mesh((1,), (nel,))
         Ke = element_matrix(mesh)
 
-        fixed = prescribe(mesh, x -> (isapprox(x, 0) || isapprox(x, 1)))
+        # Filter prescribed boundary nodes.
+        fixed = prescribe(mesh, boundary)
 
         # Obtain solution field.
         u = solve(mesh, Ke, forcing, fixed)
 
         # TODO: Update equivalent mesh size for higher dimensions.
-        dxs[i] = 1 / nel
+        dxs[i] = min(mesh.dx...)
 
         # L2 norm.
         u_exact = interpolate(mesh, Ke, f)
