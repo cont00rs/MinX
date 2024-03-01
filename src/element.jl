@@ -7,13 +7,13 @@ struct Element
     # Shape function
     N::AbstractMatrix
     # Shape function derivatives
-    B::Any
+    B::AbstractMatrix
     # Jacobian
-    J::Any
+    J::AbstractMatrix
     # Constitutive matrix
-    D::Any
+    D::AbstractMatrix
     # Element matrix
-    K::Any
+    K::AbstractMatrix
 end
 
 shape_fn(element) = element.N
