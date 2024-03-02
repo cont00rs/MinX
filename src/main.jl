@@ -25,7 +25,7 @@ function prescribe(mesh, predicate, fn)
     fixed
 end
 
-prescribe(mesh, predicate) = prescribe(mesh, predicate, x -> 0.0)
+prescribe(mesh, predicate) = prescribe(mesh, predicate, (x...) -> 0.0)
 
 function solve(mesh, Ke, forcing, fixed)
     K = assemble(mesh, Ke)
