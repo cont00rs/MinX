@@ -8,15 +8,7 @@ function dofs!(array::AbstractVector{T}, ijk::NTuple{1,T}) where {T}
     array[1] = ijk[1]
     array[2] = ijk[1] + 1
 end
-
-# TODO: For 2D problems xyz should be a matrix, 4 points, 2 coords.
-function coords!(xyz::AbstractMatrix, mesh, ijk::NTuple{1,T}) where {T}
-    xyz[1, :] = coords(mesh, ijk)
-    xyz[2, :] = coords(mesh, ijk .+ (1,))
 end
-
-coords(mesh, node) = (node .- 1) .* mesh.dx
-coords(mesh) = map(node -> coords(mesh, node), nodes(mesh))
 
 # TODO: This needs more thought for non-scalar problems.
 function prescribe(mesh, predicate, fn)

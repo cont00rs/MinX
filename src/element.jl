@@ -52,7 +52,8 @@ function element_matrix(mesh::Mesh{Dim}) where {Dim}
     N = shape_function(Dim)
     # Shape fun derivative
     b = shape_dfunction(Dim)
-    J = b * measure(mesh)
+    # All elements have the same size, just use the first one here.
+    J = b * measure(mesh, tuple(ones(Dim)...))
     # TODO: Expand B to "BB" for non-scalar problems.
     B = inv(J) * b
     # Constitutive

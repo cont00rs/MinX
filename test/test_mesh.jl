@@ -16,4 +16,10 @@ end
     xyz = zeros(2, 1)
     MinX.coords!(xyz, m1, (1,))
     @test xyz == [0; 1/10;;]
+
+    @test MinX.measure(m1, (1,)) == [0; 1/10;;]
+
+    # Assert measure returns the xyz in expected order
+    m2 = Mesh((10, 20), (10, 10))
+    @test MinX.measure(m2, (1, 1)) == [[0.0 0.0]; [1.0 0.0]; [0.0 2.0]; [1.0 2.0]]
 end
