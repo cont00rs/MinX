@@ -20,7 +20,7 @@ function dofs!(array::AbstractVector{T}, mesh, ijk::NTuple{2,T}) where {T}
 end
 
 # TODO: This needs more thought for non-scalar problems.
-function prescribe(mesh, predicate, fn)
+function prescribe(mesh::Mesh{Dim}, predicate, fn) where {Dim}
     fixed = Tuple{Int,Float64}[]
     for node in nodes(mesh)
         xyz = coords(mesh, node)
@@ -28,7 +28,12 @@ function prescribe(mesh, predicate, fn)
             # XXX: Accessing node[1] implicitly converts from node to dof for
             #      scalar problems. Probably requires an additional argument
             #      that passes through a dof selecting range.
-            push!(fixed, (node[1], fn(xyz...)))
+
+            if Dim == 1
+                push!(fixed, (node[1], fn(xyz...)))
+            elseif Dim == 2
+                push!(fixed, (node[1] + (node[2] - 1) * (mesh.nelems[1] + 1), fn(xyz...)))
+            end
         end
     end
     fixed
