@@ -4,10 +4,19 @@ export fix!, solve, calculate_error, prescribe
 
 # TODO: Add dispatch on basis type, e.g. P1, P2.
 # TODO: Extend dispatch for 2D, i.e. add element::NTuple{2,T}.
-function dofs!(array::AbstractVector{T}, ijk::NTuple{1,T}) where {T}
-    array[1] = ijk[1]
-    array[2] = ijk[1] + 1
+function dofs!(array::AbstractVector{T}, mesh, ijk::NTuple{1,T}) where {T}
+    i, = ijk
+    array[1] = i
+    array[2] = i + 1
 end
+# XXX: This has so many assumptions on node/dof numbering...
+#      Requires refactoring to move that out!
+function dofs!(array::AbstractVector{T}, mesh, ijk::NTuple{2,T}) where {T}
+    i, j = ijk
+    array[1] = i + (j - 1) * (mesh.nelems[1] + 1)
+    array[2] = i + (j - 1) * (mesh.nelems[1] + 1) + 1
+    array[3] = i + j * (mesh.nelems[1] + 1)
+    array[4] = i + j * (mesh.nelems[1] + 1) + 1
 end
 
 # TODO: This needs more thought for non-scalar problems.

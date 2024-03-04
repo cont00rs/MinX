@@ -31,7 +31,7 @@ function assemble(mesh, element)
     dofs = zeros(Int, length(shape_fn(element)))
 
     for (i, el) in enumerate(elements(mesh))
-        @views dofs!(dofs, el)
+        dofs!(dofs, mesh, el)
 
         slice = (1+(i-1)*length(Ke)):i*length(Ke)
         @views repeat!(rows[slice], dofs)
@@ -54,7 +54,7 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     vals = zeros(nnz)
 
     for (i, el) in enumerate(elements(mesh))
-        @views dofs!(dofs, el)
+        dofs!(dofs, mesh, el)
 
         slice = (1+(i-1)*length(dofs)):i*length(dofs)
         cols[slice] = dofs
@@ -85,7 +85,7 @@ function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim
     N = shape_fn(element)
     dofs = zeros(Int, length(N))
     for (i, el) in enumerate(elements(mesh))
-        @views dofs!(dofs, el)
+        dofs!(dofs, mesh, el)
         interp[i] = dot(N, state[dofs])
     end
     return interp
@@ -97,7 +97,7 @@ function derivative(mesh, element, state)
     dofs = zeros(Int, length(shape_fn(element)))
     du = zeros(length(elements(mesh)))
     for (i, el) in enumerate(elements(mesh))
-        @views dofs!(dofs, el)
+        dofs!(dofs, mesh, el)
         # XXX: Remove dot for higher dim/vector problems?
         du[i] = dot(B, state[dofs])
     end
