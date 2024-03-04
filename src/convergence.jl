@@ -43,8 +43,8 @@ function check_convergence_rate(deltas, errors)
 end
 
 # TODO forcing should become a problem description of some sort
-function convergence_rate(forcing, boundary, f, df)
-    nsteps = 8
+function convergence_rate(dim, forcing, boundary, f, df)
+    nsteps = 4
 
     nels = map(i -> 10 * 2^(i - 1), 1:nsteps)
     dxs = zeros(length(nels))
@@ -53,7 +53,7 @@ function convergence_rate(forcing, boundary, f, df)
     energy_norm = zeros(length(nels))
 
     for (i, nel) in enumerate(nels)
-        mesh = Mesh((1,), (nel,))
+        mesh = Mesh(tuple(ones(dim)...), tuple((ones(dim) .* nel)...))
         Ke = element_matrix(mesh)
 
         # Filter prescribed boundary nodes.
@@ -62,18 +62,17 @@ function convergence_rate(forcing, boundary, f, df)
         # Obtain solution field.
         u = solve(mesh, Ke, forcing, fixed)
 
-        # TODO: Update equivalent mesh size for higher dimensions.
+        # Consider shortest element edge length as equivalent mesh size.
         dxs[i] = min(mesh.dx...)
 
         # L2 norm.
         u_exact = interpolate(mesh, Ke, f)
         u_h = interpolate(mesh, Ke, u)
+        l2_norm[i] = sqrt(sum((u_exact - u_h) .^ 2) / sum(u_exact .^ 2))
 
         # Energy norm.
-        du_exact = interpolate(mesh, Ke, df)
+        du_exact = hcat([interpolate(mesh, Ke, df[i]) for i = 1:dim]...)
         du_h = derivative(mesh, Ke, u)
-
-        l2_norm[i] = sqrt(sum((u_exact - u_h) .^ 2) / sum(u_exact .^ 2))
         energy_norm[i] = sqrt(sum((du_exact - du_h) .^ 2) / sum(du_exact .^ 2))
     end
 

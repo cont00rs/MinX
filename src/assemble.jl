@@ -92,14 +92,13 @@ function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim
 end
 
 # Generate derivative of state at quadrature points
-function derivative(mesh, element, state)
+function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
     B = shape_dfn(element)
     dofs = zeros(Int, length(shape_fn(element)))
-    du = zeros(length(elements(mesh)))
+    du = zeros(length(elements(mesh)), Dim)
     for (i, el) in enumerate(elements(mesh))
         dofs!(dofs, mesh, el)
-        # XXX: Remove dot for higher dim/vector problems?
-        du[i] = dot(B, state[dofs])
+        du[i, :] = B * state[dofs]
     end
     return du
 end
