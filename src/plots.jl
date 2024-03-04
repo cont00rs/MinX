@@ -27,6 +27,46 @@ function plot_convergence_rates(xs::AbstractVector, ys::AbstractVector, slope)
     f
 end
 
+
+function plot_solution2(nelem)
+    # NOTE: The `heatmap!` plot seems to generate plots with data being cell
+    # centered. This is fine for data defined at/interpolated to the element
+    # centers. For state data, defined at the nodes, this seems less feasible.
+    # For those plots, the `contourf` option seems best, although it is to be
+    # tested what number of levels look OK and if these lines do not interfere
+    # with the data.
+    #
+    # NOTE: For non-scalar data a good option might be to use `arrow` plots on
+    # top of a contour of the absolute/norm values?
+
+    mesh = MinX.Mesh((1, 1), (nelem, nelem))
+
+    Ke = element_matrix(mesh)
+
+    forcing(xyz) = sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2
+    solution(xyz) = sin(pi * xyz[1]) * sin(pi * xyz[2])
+    dsolution(xyz) = 0
+    boundary =
+        (x, y) -> isapprox(x, 0) || isapprox(x, 1) || isapprox(y, 0) || isapprox(y, 1)
+
+    #fixed = prescribe(mesh, (x, y) -> isapprox(x, 0))
+    fixed = prescribe(mesh, boundary)
+    u = MinX.solve(mesh, Ke, forcing, fixed)
+
+    xs = [xy[1] for xy in coords(mesh)][:, 1]
+    ys = [xy[2] for xy in coords(mesh)][1, :]
+
+    #data = reshape(1:(nelem+1)^2, length(xs), length(ys))
+    data = reshape(u, length(xs), length(ys))
+
+    f = Figure()
+    Axis(f[1, 1], xlabel = L"x", ylabel = L"y")
+    #co = heatmap!(xs, ys, data)
+    co = contourf!(xs, ys, data, levels = 25)
+    Colorbar(f[1, 2], co, label = L"T")
+    f
+end
+
 # These are defined solely for plotting purposes. At some time the plots will
 # be handled differently and should probably be moved to example files.
 omega = 2pi
