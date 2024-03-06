@@ -57,7 +57,7 @@ function convergence_rate(dim, forcing, boundary, f, df)
         Ke = element_matrix(mesh)
 
         # Filter prescribed boundary nodes.
-        fixed = prescribe(mesh, boundary)
+        fixed = prescribe(mesh, Ke, boundary)
 
         # Obtain solution field.
         u = solve(mesh, Ke, forcing, fixed)

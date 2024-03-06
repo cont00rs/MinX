@@ -27,9 +27,27 @@ function elements(mesh::Mesh)
 end
 
 # Iterator over mesh nodes using tuple of (i, j, k) indexing.
-# TODO: This requires more information for quadratic elements.
+# TODO: Add dispatch on basis type, e.g. P1, P2.
 function nodes(mesh::Mesh)
     Base.product(map(x -> UnitRange(1, x + 1), mesh.nelems)...)
+end
+
+# TODO: Could `node` and `nodes!` be made more compact?
+node(mesh::Mesh{1}, i) = i
+node(mesh::Mesh{2}, i, j) = i + (j - 1) * (mesh.nelems[1] + 1)
+
+function nodes!(array::AbstractVector{T}, mesh, ijk::NTuple{1,T}) where {T}
+    i, = ijk
+    array[1] = node(mesh, i)
+    array[2] = node(mesh, i + 1)
+end
+
+function nodes!(array::AbstractVector{T}, mesh, ijk::NTuple{2,T}) where {T}
+    i, j = ijk
+    array[1] = node(mesh, i, j)
+    array[2] = node(mesh, i + 1, j)
+    array[3] = node(mesh, i, j + 1)
+    array[4] = node(mesh, i + 1, j + 1)
 end
 
 # TODO: `measure` and `coords` are rather similar. These routines can be

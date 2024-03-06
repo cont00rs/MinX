@@ -2,44 +2,27 @@ using LinearAlgebra
 
 export fix!, solve, calculate_error, prescribe
 
-# TODO: Add dispatch on basis type, e.g. P1, P2.
-# TODO: Extend dispatch for 2D, i.e. add element::NTuple{2,T}.
-function dofs!(array::AbstractVector{T}, mesh, ijk::NTuple{1,T}) where {T}
-    i, = ijk
-    array[1] = i
-    array[2] = i + 1
-end
-# XXX: This has so many assumptions on node/dof numbering...
-#      Requires refactoring to move that out!
-function dofs!(array::AbstractVector{T}, mesh, ijk::NTuple{2,T}) where {T}
-    i, j = ijk
-    array[1] = i + (j - 1) * (mesh.nelems[1] + 1)
-    array[2] = i + (j - 1) * (mesh.nelems[1] + 1) + 1
-    array[3] = i + j * (mesh.nelems[1] + 1)
-    array[4] = i + j * (mesh.nelems[1] + 1) + 1
+# XXX: The `dof`, `dofs!` routines only consider scalar problems yet.
+dof(mesh, node) = node
+function dofs!(array::AbstractMatrix{T}, mesh, nodes::AbstractVector{T}) where {T}
+    for i = 1:length(nodes)
+        array[:, i] .= nodes[i]
+    end
 end
 
 # TODO: This needs more thought for non-scalar problems.
-function prescribe(mesh::Mesh{Dim}, predicate, fn) where {Dim}
+function prescribe(mesh::Mesh{Dim}, element, predicate, fn) where {Dim}
     fixed = Tuple{Int,Float64}[]
-    for node in nodes(mesh)
-        xyz = coords(mesh, node)
+    for n in nodes(mesh)
+        xyz = coords(mesh, n)
         if predicate(xyz...)
-            # XXX: Accessing node[1] implicitly converts from node to dof for
-            #      scalar problems. Probably requires an additional argument
-            #      that passes through a dof selecting range.
-
-            if Dim == 1
-                push!(fixed, (node[1], fn(xyz...)))
-            elseif Dim == 2
-                push!(fixed, (node[1] + (node[2] - 1) * (mesh.nelems[1] + 1), fn(xyz...)))
-            end
+            push!(fixed, (dof(mesh, node(mesh, n...)), fn(xyz...)))
         end
     end
     fixed
 end
 
-prescribe(mesh, predicate) = prescribe(mesh, predicate, (x...) -> 0.0)
+prescribe(mesh, element, predicate) = prescribe(mesh, element, predicate, (x...) -> 0.0)
 
 function solve(mesh, Ke, forcing, fixed)
     K = assemble(mesh, Ke)

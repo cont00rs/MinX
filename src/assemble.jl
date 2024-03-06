@@ -28,10 +28,12 @@ function assemble(mesh, element)
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
-    dofs = zeros(Int, length(shape_fn(element)))
+    nodes = zeros(Int, length(shape_fn(element)))
+    dofs = zeros(Int, 1, length(shape_fn(element)))
 
     for (i, el) in enumerate(elements(mesh))
-        dofs!(dofs, mesh, el)
+        nodes!(nodes, mesh, el)
+        dofs!(dofs, mesh, nodes)
 
         slice = (1+(i-1)*length(Ke)):i*length(Ke)
         @views repeat!(rows[slice], dofs)
@@ -45,7 +47,8 @@ end
 # Assemble some function onto mesh nodes
 function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     N = shape_fn(element)
-    dofs = zeros(Int, length(N))
+    nodes = zeros(Int, length(N))
+    dofs = zeros(Int, 1, length(N))
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
     dx = measure(element)
@@ -54,7 +57,8 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     vals = zeros(nnz)
 
     for (i, el) in enumerate(elements(mesh))
-        dofs!(dofs, mesh, el)
+        nodes!(nodes, mesh, el)
+        dofs!(dofs, mesh, nodes)
 
         slice = (1+(i-1)*length(dofs)):i*length(dofs)
         cols[slice] = dofs
@@ -83,9 +87,11 @@ end
 function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim}
     interp = zeros(length(elements(mesh)))
     N = shape_fn(element)
-    dofs = zeros(Int, length(N))
+    nodes = zeros(Int, length(N))
+    dofs = zeros(Int, 1, length(N))
     for (i, el) in enumerate(elements(mesh))
-        dofs!(dofs, mesh, el)
+        nodes!(nodes, mesh, el)
+        dofs!(dofs, mesh, nodes)
         interp[i] = dot(N, state[dofs])
     end
     return interp
@@ -94,11 +100,13 @@ end
 # Generate derivative of state at quadrature points
 function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
     B = shape_dfn(element)
-    dofs = zeros(Int, length(shape_fn(element)))
+    nodes = zeros(Int, length(shape_fn(element)))
+    dofs = zeros(Int, 1, length(shape_fn(element)))
     du = zeros(length(elements(mesh)), Dim)
     for (i, el) in enumerate(elements(mesh))
-        dofs!(dofs, mesh, el)
-        du[i, :] = B * state[dofs]
+        nodes!(nodes, mesh, el)
+        dofs!(dofs, mesh, nodes)
+        du[i, :] = B * state[reshape(dofs, :)]
     end
     return du
 end

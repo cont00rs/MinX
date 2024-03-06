@@ -50,7 +50,7 @@ function plot_solution2(nelem)
         (x, y) -> isapprox(x, 0) || isapprox(x, 1) || isapprox(y, 0) || isapprox(y, 1)
 
     #fixed = prescribe(mesh, (x, y) -> isapprox(x, 0))
-    fixed = prescribe(mesh, boundary)
+    fixed = prescribe(mesh, Ke, boundary)
     u = MinX.solve(mesh, Ke, forcing, fixed)
 
     xs = [xy[1] for xy in coords(mesh)][:, 1]
@@ -77,7 +77,7 @@ dsolution(xyz) = cos(omega * xyz[1]) * omega
 function plot_solution(nelem)
     mesh = MinX.Mesh((1,), (nelem,))
     Ke = element_matrix(mesh)
-    fixed = prescribe(mesh, x -> (isapprox(x, 0) || isapprox(x, 1)))
+    fixed = prescribe(mesh, Ke, x -> (isapprox(x, 0) || isapprox(x, 1)))
     u = MinX.solve(mesh, Ke, forcing, fixed)
 
     f = Figure()
@@ -93,7 +93,7 @@ end
 function plot_dsolution(nelem)
     mesh = MinX.Mesh((1,), (nelem,))
     Ke = element_matrix(mesh)
-    fixed = prescribe(mesh, x -> (isapprox(x, 0) || isapprox(x, 1)))
+    fixed = prescribe(mesh, Ke, x -> (isapprox(x, 0) || isapprox(x, 1)))
     u = MinX.solve(mesh, Ke, forcing, fixed)
     du = derivative(mesh, Ke, u)
 
