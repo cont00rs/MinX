@@ -63,7 +63,7 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
         slice = (1+(i-1)*length(dofs)):i*length(dofs)
         cols[slice] = dofs
 
-        coords!(xyz, mesh, el)
+        xyz[:, :] = measure(mesh, el)
         vals[slice] = N * fun(N * xyz) * dx
     end
 
@@ -77,7 +77,7 @@ function interpolate(mesh::Mesh{Dim}, element, fun) where {Dim}
     xyz = zeros(Float64, length(N), Dim)
     dx = measure(element)
     for (i, el) in enumerate(elements(mesh))
-        coords!(xyz, mesh, el)
+        xyz[:, :] = measure(mesh, el)
         interp[i] = fun(N * xyz)
     end
     return interp

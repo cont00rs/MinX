@@ -50,21 +50,14 @@ function nodes!(array::AbstractVector{T}, mesh, ijk::NTuple{2,T}) where {T}
     array[4] = node(mesh, i + 1, j + 1)
 end
 
-# TODO: `measure` and `coords` are rather similar. These routines can be
-# combined into a single interface. Possibly introduce subtypes to distinguish
-# between nodes and elements which are currently both `NTuple{Dim, T}` types,
-# preventing dispatch?
-# XXX: This assumes an element being two nodes only!
+# Returns the coordinates of the node.
+coords(mesh, node) = (node .- 1) .* mesh.dx
+
+# Returns the coordinates of all nodes of the element.
 function measure(mesh::Mesh{Dim}, ijk::NTuple{Dim,T}) where {Dim,T}
+    # XXX: Assumes linear elements
     dxs = [[(i - 1) * dx i * dx] for (i, dx) in zip(ijk, mesh.dx)]
     measure = reshape(Base.product(dxs...) .|> collect, (2^Dim))
     # Convert from Vector{Vector{...}} to Matrix{...}.
     return permutedims(reduce(hcat, measure))
 end
-
-function coords!(xyz::AbstractMatrix, mesh::Mesh{Dim}, ijk::NTuple{Dim,T}) where {Dim,T}
-    xyz[:, :] = measure(mesh, ijk)
-end
-
-coords(mesh, node) = (node .- 1) .* mesh.dx
-coords(mesh) = map(node -> coords(mesh, node), nodes(mesh))

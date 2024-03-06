@@ -53,8 +53,8 @@ function plot_solution2(nelem)
     fixed = prescribe(mesh, Ke, boundary)
     u = MinX.solve(mesh, Ke, forcing, fixed)
 
-    xs = [xy[1] for xy in coords(mesh)][:, 1]
-    ys = [xy[2] for xy in coords(mesh)][1, :]
+    xs = map(node -> coords(mesh, node)[1], nodes(mesh))[:, 1]
+    ys = map(node -> coords(mesh, node)[2], nodes(mesh))[1, :]
 
     #data = reshape(1:(nelem+1)^2, length(xs), length(ys))
     data = reshape(u, length(xs), length(ys))
@@ -83,7 +83,7 @@ function plot_solution(nelem)
     f = Figure()
     Axis(f[1, 1], xlabel = L"x", ylabel = L"T(x)")
 
-    xs = [xyz[1] for xyz in coords(mesh)]
+    xs = map(node -> coords(mesh, node)[1], nodes(mesh))
     scatterlines!(xs, solution, label = "Analytical", markersize = 0)
     scatterlines!(xs, u, label = "Numerical")
     axislegend()

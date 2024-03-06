@@ -14,7 +14,7 @@ end
 @testset "Mesh utilities" begin
     m1 = Mesh((1,), (10,))
     xyz = zeros(2, 1)
-    MinX.coords!(xyz, m1, (1,))
+    xyz[:, :] = MinX.measure(m1, (1,))
     @test xyz == [0; 1/10;;]
 
     @test MinX.measure(m1, (1,)) == [0; 1/10;;]
