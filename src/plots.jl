@@ -27,6 +27,25 @@ function plot_convergence_rates(xs::AbstractVector, ys::AbstractVector, slope)
     f
 end
 
+function plot_solution3(nelem)
+    mesh = MinX.Mesh((1, 1, 1), (nelem, nelem, nelem))
+    Ke = element_matrix(mesh)
+
+    forcing(xyz) = sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2.0 * sin(pi * xyz[3]) * 1.5
+
+    boundary = (x, y, z) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0 || z ≈ 0.0 || z ≈ 1.0
+
+    fixed = prescribe(mesh, Ke, boundary)
+    u = MinX.solve(mesh, Ke, forcing, fixed)
+
+    # XXX: Improve the coord extraction for plotting.
+    xs = map(node -> coords(mesh, node)[1], nodes(mesh))[:, 1, 1]
+    ys = map(node -> coords(mesh, node)[2], nodes(mesh))[1, :, 1]
+    zs = map(node -> coords(mesh, node)[3], nodes(mesh))[1, 1, :]
+
+    data = reshape(u, length(xs), length(ys), length(zs))
+    volume(xs, ys, zs, data)
+end
 
 function plot_solution2(nelem)
     # NOTE: The `heatmap!` plot seems to generate plots with data being cell
