@@ -16,7 +16,7 @@ function prescribe(mesh::Mesh{Dim}, element, predicate, fn) where {Dim}
     for n in nodes(mesh)
         xyz = coords(mesh, n)
         if predicate(xyz...)
-            push!(fixed, (dof(mesh, node(mesh, n...)), fn(xyz...)))
+            push!(fixed, (dof(mesh, node(mesh, n)), fn(xyz...)))
         end
     end
     fixed

@@ -21,42 +21,28 @@ function Base.show(io::IO, m::Mesh{Dim}) where {Dim}
     print(io, "Mesh{$(Dim)}: L: $(m.length), nel: $(m.nelems), dx: $(m.dx)")
 end
 
-# Iterator over mesh elements using tuple of (i, j, k) indexing.
-function elements(mesh::Mesh)
-    return Base.product(map(x -> UnitRange(1, x), mesh.nelems)...)
-end
-
-# Iterator over mesh nodes using tuple of (i, j, k) indexing.
 # TODO: Add dispatch on basis type, e.g. P1, P2.
-function nodes(mesh::Mesh)
-    Base.product(map(x -> UnitRange(1, x + 1), mesh.nelems)...)
-end
+# Iterators over mesh elements, nodes using CartesianIndices
+elements(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems))
+nodes(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems .+ 1))
 
-# TODO: Could `node` and `nodes!` be made more compact?
-node(mesh::Mesh{1}, i) = i
-node(mesh::Mesh{2}, i, j) = i + (j - 1) * (mesh.nelems[1] + 1)
+# XXX: Move `LinearIndices` to mesh struct to avoid reallocing?
+node(mesh, ijk::CartesianIndex) = LinearIndices(Tuple(mesh.nelems .+ 1))[ijk]
 
-function nodes!(array::AbstractVector{T}, mesh, ijk::NTuple{1,T}) where {T}
-    i, = ijk
-    array[1] = node(mesh, i)
-    array[2] = node(mesh, i + 1)
-end
-
-function nodes!(array::AbstractVector{T}, mesh, ijk::NTuple{2,T}) where {T}
-    i, j = ijk
-    array[1] = node(mesh, i, j)
-    array[2] = node(mesh, i + 1, j)
-    array[3] = node(mesh, i, j + 1)
-    array[4] = node(mesh, i + 1, j + 1)
+# Extract all linear node indices for element ijk.
+function nodes!(array::AbstractVector{T}, mesh::Mesh{Dim}, ijk) where {Dim,T}
+    for (i, offset) in enumerate(CartesianIndices(ntuple(x -> 0:1, Dim)))
+        array[i] = node(mesh, ijk + offset)
+    end
 end
 
 # Returns the coordinates of the node.
-coords(mesh, node) = (node .- 1) .* mesh.dx
+coords(mesh, node::CartesianIndex) = (Tuple(node) .- 1) .* mesh.dx
 
 # Returns the coordinates of all nodes of the element.
-function measure(mesh::Mesh{Dim}, ijk::NTuple{Dim,T}) where {Dim,T}
+function measure(mesh::Mesh{Dim}, ijk) where {Dim}
     # XXX: Assumes linear elements
-    dxs = [[(i - 1) * dx i * dx] for (i, dx) in zip(ijk, mesh.dx)]
+    dxs = [[(i - 1) * dx i * dx] for (i, dx) in zip(Tuple(ijk), mesh.dx)]
     measure = reshape(Base.product(dxs...) .|> collect, (2^Dim))
     # Convert from Vector{Vector{...}} to Matrix{...}.
     return permutedims(reduce(hcat, measure))
