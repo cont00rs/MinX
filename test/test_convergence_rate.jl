@@ -28,4 +28,18 @@ using MinX
     delta, l2, energy = MinX.convergence_rate(2, forcing2, boundary2, solution2, dsolution2)
     @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
     @test 0.99 < last(MinX.convergence_rates(delta, energy)) # < 1.01
+
+    forcing3(xyz) =
+        sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2.0 * sin(pi * xyz[3]) * 1.5
+    solution3(xyz) = sin(pi * xyz[1]) * sin(pi * xyz[2]) * sin(pi * xyz[3])
+    dsolution3 = [
+        xyz -> sin(pi * xyz[3]) * sin(pi * xyz[2]) * pi * cos(pi * xyz[1])
+        xyz -> sin(pi * xyz[3]) * pi * (sin(pi * xyz[1]) * cos(pi * xyz[2]))
+        xyz -> pi * sin(pi * xyz[1]) * sin(pi * xyz[2]) * cos(pi * xyz[3])
+    ]
+    boundary3 = (x, y, z) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0 || z ≈ 0.0 || z ≈ 1.0
+
+    delta, l2, energy = MinX.convergence_rate(3, forcing3, boundary3, solution3, dsolution3)
+    @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
+    @test 0.99 < last(MinX.convergence_rates(delta, energy)) # < 1.01
 end

@@ -46,7 +46,9 @@ end
 function convergence_rate(dim, forcing, boundary, f, df)
     nsteps = 4
 
-    nels = map(i -> 10 * 2^(i - 1), 1:nsteps)
+    # Restrict 3D problems to smaller ultimate mesh size.
+    nel0 = dim == 3 ? 4 : 10
+    nels = map(i -> nel0 * 2^(i - 1), 1:nsteps)
     dxs = zeros(length(nels))
 
     l2_norm = zeros(length(nels))
