@@ -20,7 +20,7 @@ end
 
 # Assemble the global 'stiffness' matrix.
 # TODO Figure out memory reuse for sparse matrix.
-function assemble(mesh, element)
+function assemble(mesh::Mesh{Dim}, element) where {Dim}
     Ke = stencil(element)
     nnz = length(Ke) * length(elements(mesh))
 
@@ -28,7 +28,7 @@ function assemble(mesh, element)
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
-    nodes = zeros(Int, length(shape_fn(element)))
+    nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
     dofs = zeros(Int, 1, length(shape_fn(element)))
 
     for (i, el) in enumerate(elements(mesh))
@@ -47,7 +47,7 @@ end
 # Assemble some function onto mesh nodes
 function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     N = shape_fn(element)
-    nodes = zeros(Int, length(N))
+    nodes = zeros(CartesianIndex{Dim}, length(N))
     dofs = zeros(Int, 1, length(N))
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
@@ -87,7 +87,7 @@ end
 function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim}
     interp = zeros(length(elements(mesh)))
     N = shape_fn(element)
-    nodes = zeros(Int, length(N))
+    nodes = zeros(CartesianIndex{Dim}, length(N))
     dofs = zeros(Int, 1, length(N))
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
@@ -100,7 +100,7 @@ end
 # Generate derivative of state at quadrature points
 function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
     B = shape_dfn(element)
-    nodes = zeros(Int, length(shape_fn(element)))
+    nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
     dofs = zeros(Int, 1, length(shape_fn(element)))
     du = zeros(length(elements(mesh)), Dim)
     for (i, el) in enumerate(elements(mesh))

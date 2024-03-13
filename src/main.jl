@@ -3,20 +3,22 @@ using LinearAlgebra
 export fix!, solve, calculate_error, prescribe
 
 # XXX: The `dof`, `dofs!` routines only consider scalar problems yet.
-dof(mesh, node) = node
-function dofs!(array::AbstractMatrix{T}, mesh, nodes::AbstractVector{T}) where {T}
-    for i = 1:length(nodes)
-        array[:, i] .= nodes[i]
+# XXX: Probably want to store `LinearIndices` instance somewhere to prevent reallocs.
+dof(mesh, node) = LinearIndices(Tuple(mesh.nelems .+ 1))[node]
+
+function dofs!(array::AbstractMatrix{T}, mesh::Mesh{Dim}, nodes::AbstractVector{CartesianIndex{Dim}}) where {T, Dim}
+    for (i, node) in enumerate(nodes)
+        array[:, i] .= dof(mesh, node)
     end
 end
 
 # TODO: This needs more thought for non-scalar problems.
 function prescribe(mesh::Mesh{Dim}, element, predicate, fn) where {Dim}
     fixed = Tuple{Int,Float64}[]
-    for n in nodes(mesh)
-        xyz = coords(mesh, n)
+    for node in nodes(mesh)
+        xyz = coords(mesh, node)
         if predicate(xyz...)
-            push!(fixed, (dof(mesh, node(mesh, n)), fn(xyz...)))
+            push!(fixed, (dof(mesh, node), fn(xyz...)))
         end
     end
     fixed

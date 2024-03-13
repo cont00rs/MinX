@@ -26,13 +26,10 @@ end
 elements(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems))
 nodes(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems .+ 1))
 
-# XXX: Move `LinearIndices` to mesh struct to avoid reallocing?
-node(mesh, ijk::CartesianIndex) = LinearIndices(Tuple(mesh.nelems .+ 1))[ijk]
-
 # Extract all linear node indices for element ijk.
-function nodes!(array::AbstractVector{T}, mesh::Mesh{Dim}, ijk) where {Dim,T}
+function nodes!(array::AbstractVector{CartesianIndex{Dim}}, mesh::Mesh{Dim}, ijk) where {Dim}
     for (i, offset) in enumerate(CartesianIndices(ntuple(x -> 0:1, Dim)))
-        array[i] = node(mesh, ijk + offset)
+        array[i] = ijk + offset
     end
 end
 
