@@ -6,7 +6,11 @@ export fix!, solve, calculate_error, prescribe
 # XXX: Probably want to store `LinearIndices` instance somewhere to prevent reallocs.
 dof(mesh, node) = LinearIndices(Tuple(mesh.nelems .+ 1))[node]
 
-function dofs!(array::AbstractMatrix{T}, mesh::Mesh{Dim}, nodes::AbstractVector{CartesianIndex{Dim}}) where {T, Dim}
+function dofs!(
+    array::AbstractMatrix{T},
+    mesh::Mesh{Dim},
+    nodes::AbstractVector{CartesianIndex{Dim}},
+) where {T,Dim}
     for (i, node) in enumerate(nodes)
         array[:, i] .= dof(mesh, node)
     end

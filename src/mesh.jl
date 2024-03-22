@@ -27,7 +27,11 @@ elements(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems))
 nodes(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems .+ 1))
 
 # Extract all linear node indices for element ijk.
-function nodes!(array::AbstractVector{CartesianIndex{Dim}}, mesh::Mesh{Dim}, ijk) where {Dim}
+function nodes!(
+    array::AbstractVector{CartesianIndex{Dim}},
+    mesh::Mesh{Dim},
+    ijk,
+) where {Dim}
     for (i, offset) in enumerate(CartesianIndices(ntuple(x -> 0:1, Dim)))
         array[i] = ijk + offset
     end

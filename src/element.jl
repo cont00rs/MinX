@@ -1,7 +1,13 @@
 using LinearAlgebra
 using StaticArrays
 
-export Element, element_matrix
+export Element, ElementType, element_matrix
+export Heat, Elastic
+
+@enum ElementType begin
+    Heat
+    Elastic
+end
 
 struct Element
     # Shape function
@@ -46,7 +52,7 @@ function shape_dfunction(dim::Integer, x = 0.5, y = 0.5, z = 0.5)
     return vcat(map(x -> collapser(x), dfuns)...)
 end
 
-function element_matrix(mesh::Mesh{Dim}) where {Dim}
+function element_matrix(eltype::ElementType, mesh::Mesh{Dim}) where {Dim}
     @assert 1 <= Dim <= 3 "Invalid dimension."
     # Shape fun
     N = shape_function(Dim)
@@ -57,8 +63,14 @@ function element_matrix(mesh::Mesh{Dim}) where {Dim}
     # TODO: Expand B to "BB" for non-scalar problems.
     B = inv(J) * b
     # Constitutive
-    # TODO: Accept material properties in dispatched constructors?
-    D = Matrix(I, Dim, Dim)
+    # TODO: Pass in constitutive information through arguments.
+    if eltype == Heat
+        D = Matrix(I, Dim, Dim)
+    elseif eltype == Elastic
+        D = Matrix(I, Dim, Dim)
+    else
+        @assert false, "Unreachable"
+    end
     # Element matrix
     K = det(J) * B' * D * B
     return Element(N, B, J, D, K)

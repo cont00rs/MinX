@@ -43,7 +43,7 @@ function check_convergence_rate(deltas, errors)
 end
 
 # TODO forcing should become a problem description of some sort
-function convergence_rate(dim, forcing, boundary, f, df)
+function convergence_rate(dim, eltype, forcing, boundary, f, df)
     nsteps = 4
 
     # Restrict 3D problems to smaller ultimate mesh size.
@@ -56,7 +56,7 @@ function convergence_rate(dim, forcing, boundary, f, df)
 
     for (i, nel) in enumerate(nels)
         mesh = Mesh(tuple(ones(dim)...), tuple((ones(dim) .* nel)...))
-        Ke = element_matrix(mesh)
+        Ke = element_matrix(eltype, mesh)
 
         # Filter prescribed boundary nodes.
         fixed = prescribe(mesh, Ke, boundary)
