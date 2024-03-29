@@ -46,7 +46,7 @@ using MinX
     delta, l2, energy =
         MinX.convergence_rate(3, Heat, forcing3, boundary3, solution3, dsolution3)
     @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
-    @test 0.99 < last(MinX.convergence_rates(delta, energy)) # < 1.01
+    @test 0.99 < last(MinX.convergence_rates(delta, energy)) < 2.01 # expected 1.01
 end
 
 @testset "Convergence rate elastic" begin
@@ -58,4 +58,5 @@ end
     delta, l2, energy =
         MinX.convergence_rate(1, Elastic, forcing, boundary, solution, dsolution)
     @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
+    @test 0.99 < last(MinX.convergence_rates(delta, energy)) < 2.01 # expected 1.01
 end
