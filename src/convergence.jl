@@ -26,7 +26,7 @@ end
 
 function convergence_rates(xs, ys)
     rates = [0.0]
-    for i = 2:length(xs)
+    for i in Iterators.drop(eachindex(xs), 1)
         dx = log(xs[i] / xs[i-1])
         dy = log(ys[i] / ys[i-1])
         push!(rates, dy / dx)
@@ -51,6 +51,8 @@ function convergence_rate(dim, eltype, forcing, boundary, f, df)
     nels = map(i -> nel0 * 2^(i - 1), 1:nsteps)
     dxs = zeros(length(nels))
 
+    dpn = eltype == Elastic ? dim : 1
+
     l2_norm = zeros(length(nels))
     energy_norm = zeros(length(nels))
 
@@ -59,7 +61,7 @@ function convergence_rate(dim, eltype, forcing, boundary, f, df)
         Ke = element_matrix(eltype, mesh)
 
         # Filter prescribed boundary nodes.
-        fixed = prescribe(mesh, Ke, boundary)
+        fixed = prescribe(mesh, Ke, dpn, boundary)
 
         # Obtain solution field.
         u = solve(mesh, Ke, forcing, fixed)
@@ -68,13 +70,25 @@ function convergence_rate(dim, eltype, forcing, boundary, f, df)
         dxs[i] = min(mesh.dx...)
 
         # L2 norm.
-        u_exact = interpolate(mesh, Ke, f)
+        # XXX: Not that elegant.
+        u_exact = zeros(dpn, nel^dim)
+        for i = 1:dpn
+            u_exact[i, :] = interpolate(mesh, Ke, f[i])
+        end
         u_h = interpolate(mesh, Ke, u)
+
         l2_norm[i] = sqrt(sum((u_exact - u_h) .^ 2) / sum(u_exact .^ 2))
 
         # Energy norm.
-        du_exact = hcat([interpolate(mesh, Ke, df[i]) for i = 1:dim]...)
+        # XXX: Even less elegant...
+        ncount = eltype == Elastic ? dim == 2 ? 3 : 1 : dim
+        du_exact = zeros(ncount, nel^dim)
+        for i = 1:ncount
+            du_exact[i, :] = interpolate(mesh, Ke, df[i])
+        end
         du_h = derivative(mesh, Ke, u)
+
+        # XXX: Isn't this typically combined with constitutive too?
         energy_norm[i] = sqrt(sum((du_exact - du_h) .^ 2) / sum(du_exact .^ 2))
     end
 

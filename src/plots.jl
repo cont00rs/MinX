@@ -47,6 +47,34 @@ function plot_solution3(nelem)
     volume(xs, ys, zs, data)
 end
 
+function plot_solution_elastic(nelem)
+    # TODO: Refactor all these plots together. Its getting out of hand.
+    mesh = MinX.Mesh((1, 1), (nelem, nelem))
+    Ke = element_matrix(Elastic, mesh)
+
+    boundary =
+        (x, y) -> isapprox(x, 0) || isapprox(y, 0) || isapprox(x, 1) || isapprox(y, 1)
+    fixed = prescribe(mesh, Ke, 2, boundary)
+
+    u = MinX.solve(mesh, Ke, forcing, fixed)
+
+    xs = map(node -> coords(mesh, node)[1], nodes(mesh))[:, 1]
+    ys = map(node -> coords(mesh, node)[2], nodes(mesh))[1, :]
+
+    dpn = 2
+    data = reshape(u, dpn, length(xs), length(ys))
+    us = data[1, :, :]
+    vs = data[2, :, :]
+
+    strength = vec(sqrt.(us .^ 2 .+ vs .^ 2))
+
+    f = Figure()
+    Axis(f[1, 1], xlabel = L"x", ylabel = L"y")
+    arrows!(xs, ys, us, vs, lengthscale = 0.1, arrowcolor = strength, linecolor = strength)
+
+    f
+end
+
 function plot_solution2(nelem)
     # NOTE: The `heatmap!` plot seems to generate plots with data being cell
     # centered. This is fine for data defined at/interpolated to the element
