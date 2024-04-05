@@ -29,16 +29,23 @@ function assemble(mesh::Mesh{Dim}, element) where {Dim}
     vals = zeros(nnz)
 
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-    dofs = zeros(Int, 1, length(shape_fn(element)))
+
+    # XXX: Handle dofs per node at compile time. This should be handled through
+    # the type system, not manually with ternaries or other branching.
+    dpn = element.eltype == Elastic ? Dim : 1
+    dofs = zeros(Int, dpn, length(shape_fn(element)))
+
+    # XXX: Hardcoded, there are no quadrature loops yet.
+    quadrature_weight = 2^Dim
 
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
+        dofs!(dofs, mesh, nodes, dpn)
 
         slice = (1+(i-1)*length(Ke)):i*length(Ke)
-        @views repeat!(rows[slice], dofs)
-        @views tile!(cols[slice], dofs)
-        vals[slice] = Ke
+        @views repeat!(rows[slice], vec(dofs))
+        @views tile!(cols[slice], vec(dofs))
+        vals[slice] = Ke * quadrature_weight
     end
 
     K = sparse(rows, cols, vals)
@@ -48,7 +55,8 @@ end
 function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(Int, 1, length(N))
+    dpn = element.eltype == Elastic ? Dim : 1
+    dofs = zeros(Int, dpn, length(N))
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
     dx = measure(element)
@@ -56,15 +64,18 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
+    # XXX: Hardcoded, there are no quadrature loops yet.
+    quadrature_weight = 2^Dim
+
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
+        dofs!(dofs, mesh, nodes, dpn)
 
         slice = (1+(i-1)*length(dofs)):i*length(dofs)
         cols[slice] = dofs
 
         xyz[:, :] = measure(mesh, el)
-        vals[slice] = N * fun(N * xyz) * dx
+        vals[slice] = fun(N * xyz) * N * det(element.J) * quadrature_weight
     end
 
     F = Vector(sparsevec(cols, vals))
@@ -75,7 +86,6 @@ function interpolate(mesh::Mesh{Dim}, element, fun) where {Dim}
     interp = zeros(length(elements(mesh)))
     N = shape_fn(element)
     xyz = zeros(Float64, length(N), Dim)
-    dx = measure(element)
     for (i, el) in enumerate(elements(mesh))
         xyz[:, :] = measure(mesh, el)
         interp[i] = fun(N * xyz)
@@ -85,28 +95,32 @@ end
 
 # Interpolate a state vector onto quadrature points
 function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim}
-    interp = zeros(length(elements(mesh)))
+    dpn = element.eltype == Elastic ? Dim : 1
+    interp = zeros(dpn, length(elements(mesh)))
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(Int, 1, length(N))
+    dofs = zeros(Int, dpn, length(N))
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
-        interp[i] = dot(N, state[dofs])
+        dofs!(dofs, mesh, nodes, dpn)
+        interp[:, i] .= state[dofs] * N'
     end
     return interp
 end
 
 # Generate derivative of state at quadrature points
 function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
+    dpn = element.eltype == Elastic ? Dim == 2 ? 2 : 1 : 1
     B = shape_dfn(element)
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-    dofs = zeros(Int, 1, length(shape_fn(element)))
-    du = zeros(length(elements(mesh)), Dim)
+    dofs = zeros(Int, dpn, length(shape_fn(element)))
+
+    kludge = element.eltype == Elastic ? Dim == 2 ? 3 : 1 : Dim
+    du = zeros(kludge, length(elements(mesh)))
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
-        du[i, :] = B * state[reshape(dofs, :)]
+        dofs!(dofs, mesh, nodes, dpn)
+        du[:, i] .= B * reshape(state[dofs], :)
     end
     return du
 end
