@@ -1,0 +1,4 @@
+root = true
+
+[*.jl]
+trim_trailing_whitespace = true
