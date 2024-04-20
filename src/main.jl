@@ -2,7 +2,6 @@ using LinearAlgebra
 
 export fix!, solve, prescribe
 
-# XXX: The `dof`, `dofs!` routines only consider scalar problems yet.
 # XXX: Probably want to store `LinearIndices` instance somewhere to prevent reallocs.
 #
 dof(mesh, node, dpn) = LinearIndices((dpn, Tuple(mesh.nelems .+ 1)...))[node]
