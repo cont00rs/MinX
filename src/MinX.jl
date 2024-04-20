@@ -1,5 +1,6 @@
 module MinX
 
+include("basis.jl")
 include("mesh.jl")
 include("assemble.jl")
 include("convergence.jl")
