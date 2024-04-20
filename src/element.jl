@@ -1,13 +1,7 @@
 using LinearAlgebra
 using StaticArrays
 
-export Element, ElementType, element_matrix
-export Heat, Elastic
-
-@enum ElementType begin
-    Heat
-    Elastic
-end
+export Element, element_matrix
 
 struct Element
     # Shape function
@@ -20,8 +14,8 @@ struct Element
     D::AbstractMatrix
     # Element matrix
     K::AbstractMatrix
-    # The type of element
-    eltype::ElementType
+    # The type of element, i.e. material
+    material::Material
     # The basis spanned by the element, e.g. dofs per node information
     basis::Basis
     # Quadrature for the integration
@@ -57,7 +51,7 @@ function shape_dfunction(xyz)
     return vcat(map(x -> collapser(x), dfuns)...)
 end
 
-function element_matrix(eltype::ElementType, mesh::Mesh{Dim}) where {Dim}
+function element_matrix(material::Material, mesh::Mesh{Dim}) where {Dim}
     @assert 1 <= Dim <= 3 "Invalid dimension."
 
     # The considered quadrature rule.
@@ -76,7 +70,7 @@ function element_matrix(eltype::ElementType, mesh::Mesh{Dim}) where {Dim}
     # XXX: The expansion of B should probably not be tied to the element type
     # directly. This should be deferred from another type/struct? Ideally this
     # is handled through some form of dispatch as well.
-    if eltype == Elastic && Dim == 2
+    if type(material) == Elastic && Dim == 2
         BB = zeros(3, 8)
         BB[1, 1:2:end] = B[1, :]
         BB[3, 2:2:end] = B[1, :]
@@ -85,36 +79,16 @@ function element_matrix(eltype::ElementType, mesh::Mesh{Dim}) where {Dim}
         B = BB
     end
 
-    # TODO: Pass in the constitutive matrix through a helper function that is
-    # exported. This could take the form of `constitutive(mesh, Heat, kappa)`
-    # or `constitutive(mesh, Elastic, E, nu)`. Then, for element types that
-    # need it, `constitutive` (or another name) can be dispatched over
-    # different mesh dimensions and/or different sets of supplied arguments.
-    # That removes the if-branching here as well.
-    #
-    # Constitutive
-    if eltype == Heat
-        D = Matrix(I, Dim, Dim)
-    elseif eltype == Elastic && Dim == 1
-        D = Matrix(I, Dim, Dim)
-    elseif eltype == Elastic && Dim == 2
-        E = 2.5
-        nu = 0.25
-        # XXX: Make this configurable too, see refactoring TODO above.
-        # D = (E / (1 - nu^2)) * [[1 nu 0]; [nu 1 0]; [0 0 (1-nu)/2]] # plane stress
-        D =
-            E / ((1 + nu) * (1 - 2 * nu)) *
-            [[1 - nu nu 0]; [nu 1 - nu 0]; [0 0 (1 - 2 * nu) / 2]] # plain strain
-    else
-        @assert false, "Unreachable"
-    end
+    D = constitutive(material, Dim)
 
     # Element matrix
     K = det(J) * B' * D * B
 
     # The spanned basis
-    basis = Basis(eltype == Elastic ? Dim : 1)
+    # XXX: It feels backward that this extracts information from material?
+    #      Should this information not be included in another way?
+    basis = Basis(type(material) == Elastic ? Dim : 1)
 
     # Pack up all information within the element struct.
-    return Element(N, B, J, D, K, eltype, basis, quadrature)
+    return Element(N, B, J, D, K, material, basis, quadrature)
 end

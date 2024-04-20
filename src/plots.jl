@@ -50,13 +50,25 @@ end
 function plot_solution_elastic(nelem)
     # TODO: Refactor all these plots together. Its getting out of hand.
     mesh = MinX.Mesh((1, 1), (nelem, nelem))
-    Ke = element_matrix(Elastic, mesh)
+    Ke = element_matrix(elastic(2.5, 0.25), mesh)
 
     boundary =
         (x, y) -> isapprox(x, 0) || isapprox(y, 0) || isapprox(x, 1) || isapprox(y, 1)
     fixed = prescribe(mesh, Ke, 2, boundary)
 
-    u = MinX.solve(mesh, Ke, forcing, fixed)
+    forcing(lambda, mu) =
+        xyz -> [
+            -pi^2 * (
+                -(lambda + 3mu) * sin(pi * xyz[1]) * sin(pi * xyz[2]) +
+                (lambda + mu) * cos(pi * xyz[1]) * cos(pi * xyz[2])
+            ),
+            -pi^2 * (
+                -(lambda + 3mu) * sin(pi * xyz[1]) * sin(pi * xyz[2]) +
+                (lambda + mu) * cos(pi * xyz[1]) * cos(pi * xyz[2])
+            ),
+        ]
+
+    u = MinX.solve(mesh, Ke, forcing(1, 1), fixed)
 
     xs = map(node -> coords(mesh, node)[1], nodes(mesh))[:, 1]
     ys = map(node -> coords(mesh, node)[2], nodes(mesh))[1, :]
