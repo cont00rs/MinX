@@ -43,7 +43,7 @@ function check_convergence_rate(deltas, errors)
 end
 
 # TODO forcing should become a problem description of some sort
-function convergence_rate(dim, eltype, forcing, boundary, f, df)
+function convergence_rate(dim, material, forcing, boundary, f, df)
     nsteps = 4
 
     # Restrict 3D problems to smaller ultimate mesh size.
@@ -51,14 +51,13 @@ function convergence_rate(dim, eltype, forcing, boundary, f, df)
     nels = map(i -> nel0 * 2^(i - 1), 1:nsteps)
     dxs = zeros(length(nels))
 
-    dpn = eltype == Elastic ? dim : 1
-
     l2_norm = zeros(length(nels))
     energy_norm = zeros(length(nels))
 
     for (i, nel) in enumerate(nels)
         mesh = Mesh(tuple(ones(dim)...), tuple((ones(dim) .* nel)...))
-        Ke = element_matrix(eltype, mesh)
+        Ke = element_matrix(material, mesh)
+        dpn = dofs_per_node(Ke)
 
         # Filter prescribed boundary nodes.
         fixed = prescribe(mesh, Ke, dpn, boundary)
@@ -81,7 +80,7 @@ function convergence_rate(dim, eltype, forcing, boundary, f, df)
 
         # Energy norm.
         # XXX: Even less elegant...
-        ncount = eltype == Elastic ? dim == 2 ? 3 : 1 : dim
+        ncount = size(shape_dfn(Ke), 1)
         du_exact = zeros(ncount, nel^dim)
         for i = 1:ncount
             du_exact[i, :] = interpolate(mesh, Ke, df[i])
