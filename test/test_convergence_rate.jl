@@ -1,79 +1,23 @@
 using Test
 using MinX
 
-# TODO: Generalise tests into a table-based test configuration.
 
-@testset "Convergence rate heat" begin
-    # One-dimensional heat equation
-    # - left, right clamped at zero
-    # - unit material properties
-
-    omega = 2pi
-    forcing(xyz) = sin(omega * xyz[1]) * omega^2
-    solution = [xyz -> sin(omega * xyz[1])]
-    dsolution = [xyz -> cos(omega * xyz[1]) * omega]
-    boundary = x -> isapprox(x, 0) || isapprox(x, 1)
-
-    delta, l2, energy =
-        MinX.convergence_rate(1, Heat, forcing, boundary, solution, dsolution)
-    @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
-    # TODO: Fix this upperbound: it convergence with rate 2.0 too?
-    @test 0.99 < last(MinX.convergence_rates(delta, energy)) # < 1.01
-
-    forcing2(xyz) = sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2
-    solution = [xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2])]
-    dsolution = [
-        xyz -> sin(pi * xyz[2]) * pi * cos(pi * xyz[1])
-        xyz -> pi * (sin(pi * xyz[1]) * cos(pi * xyz[2]))
-    ]
-    boundary2 = (x, y) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0
-
-    delta, l2, energy =
-        MinX.convergence_rate(2, Heat, forcing2, boundary2, solution, dsolution)
-    @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
-    @test 0.99 < last(MinX.convergence_rates(delta, energy)) # < 1.01
-
-    forcing3(xyz) =
-        sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2.0 * sin(pi * xyz[3]) * 1.5
-    solution = [xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2]) * sin(pi * xyz[3])]
-    dsolution = [
-        xyz -> sin(pi * xyz[3]) * sin(pi * xyz[2]) * pi * cos(pi * xyz[1])
-        xyz -> sin(pi * xyz[3]) * pi * (sin(pi * xyz[1]) * cos(pi * xyz[2]))
-        xyz -> pi * sin(pi * xyz[1]) * sin(pi * xyz[2]) * cos(pi * xyz[3])
-    ]
-    boundary3 = (x, y, z) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0 || z ≈ 0.0 || z ≈ 1.0
-
-    delta, l2, energy =
-        MinX.convergence_rate(3, Heat, forcing3, boundary3, solution, dsolution)
-    @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
-    @test 0.99 < last(MinX.convergence_rates(delta, energy)) < 2.01 # expected < 1.01
+struct ConvergenceTest
+    element_type::MinX.ElementType
+    dimension::Integer
+    forcing::Function
+    fixed_boundary::Function
+    solution::Vector{Function}
+    derivatives::Vector{Function}
+    l2norm::Tuple{Real,Real}
+    energy::Tuple{Real,Real}
 end
 
-@testset "Convergence rate elastic" begin
-    boundary = x -> isapprox(x, 0)
-    forcing(xyz) = xyz[1]
-    solution = [xyz -> 0.5 * xyz[1] - (1 / 6) * xyz[1]^3]
-    dsolution = [xyz -> 0.5 - 0.5 * xyz[1]^2]
-
-    delta, l2, energy =
-        MinX.convergence_rate(1, Elastic, forcing, boundary, solution, dsolution)
-    @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
-    @test 0.99 < last(MinX.convergence_rates(delta, energy)) < 2.01 # expected < 1.01
-
-    # XXX: Only asserts behaviour along 1D with Poisson's ratio set to zero!
-    #boundary = (x, y) -> isapprox(x, 0)
-    boundary =
-        (x, y) -> isapprox(x, 0) || isapprox(y, 0) || isapprox(x, 1) || isapprox(y, 1)
-
-    # From the first random paper that showed up in search which provided some manufactured solution for 2D elasticity problem.
-    # This does require Lame parameters lambda = mu = 1 yielding E = 2.5, nu = 0.25.
-    # XXX: Set material properties through configurable material. Hardcoded now.
-    E = 2.5
-    nu = 0.25
-    lambda = 1
-    mu = 1
-
-    forcing(xyz) = [
+# This does require Lame parameters lambda = mu = 1 yielding E = 2.5, nu = 0.25.
+# XXX: Set material properties through configurable material.
+# This relies on hardcoded E = 2.5, nu = 0.25 in element itself...
+forcing_elastic_2d(lambda, mu) =
+    xyz -> [
         -pi^2 * (
             -(lambda + 3mu) * sin(pi * xyz[1]) * sin(pi * xyz[2]) +
             (lambda + mu) * cos(pi * xyz[1]) * cos(pi * xyz[2])
@@ -84,23 +28,96 @@ end
         ),
     ]
 
-    solution = [
-        xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2]),
-        xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2]),
-    ]
 
-    # XXX: What are the matching derivatives?
-    dsolution = [
-        xyz -> pi * cos(pi * xyz[1]) * sin(pi * xyz[2]),
-        xyz -> pi * sin(pi * xyz[1]) * cos(pi * xyz[2]),
+convergence_tests = [
+    ConvergenceTest(
+        Heat,
+        1,
+        xyz -> sin(2 * pi * xyz[1]) * (2 * pi)^2,
+        x -> isapprox(x, 0) || isapprox(x, 1),
+        [xyz -> sin(2 * pi * xyz[1])],
+        [xyz -> cos(2 * pi * xyz[1]) * 2 * pi],
+        (1.99, 2.01),
+        (0.99, 2.01),
+    ),
+    ConvergenceTest(
+        Heat,
+        2,
+        xyz -> sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2,
+        (x, y) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0,
+        [xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2])],
+        [
+            xyz -> sin(pi * xyz[2]) * pi * cos(pi * xyz[1])
+            xyz -> pi * (sin(pi * xyz[1]) * cos(pi * xyz[2]))
+        ],
+        (1.99, 2.01),
+        (0.99, 2.01),
+    ),
+    ConvergenceTest(
+        Heat,
+        3,
         xyz ->
-            pi * cos(pi * xyz[1]) * sin(pi * xyz[2]) +
-            pi * sin(pi * xyz[1]) * cos(pi * xyz[2]),
-    ]
+            sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2.0 * sin(pi * xyz[3]) * 1.5,
+        (x, y, z) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0 || z ≈ 0.0 || z ≈ 1.0,
+        [xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2]) * sin(pi * xyz[3])],
+        [
+            xyz -> sin(pi * xyz[3]) * sin(pi * xyz[2]) * pi * cos(pi * xyz[1])
+            xyz -> sin(pi * xyz[3]) * pi * (sin(pi * xyz[1]) * cos(pi * xyz[2]))
+            xyz -> pi * sin(pi * xyz[1]) * sin(pi * xyz[2]) * cos(pi * xyz[3])
+        ],
+        (1.99, 2.01),
+        (0.99, 2.01),
+    ),
+    ConvergenceTest(
+        Elastic,
+        1,
+        xyz -> xyz[1],
+        x -> isapprox(x, 0),
+        [xyz -> 0.5 * xyz[1] - (1 / 6) * xyz[1]^3],
+        [xyz -> 0.5 - 0.5 * xyz[1]^2],
+        (1.99, 2.01),
+        (0.99, 2.01),
+    ),
+    ConvergenceTest(
+        # https://doi.org/10.1007/s00466-023-02282-2
+        # TODO: Also implement 'divergent free' example from this paper.
+        Elastic,
+        2,
+        forcing_elastic_2d(1, 1),
+        (x, y) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0,
+        [
+            xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2]),
+            xyz -> sin(pi * xyz[1]) * sin(pi * xyz[2]),
+        ],
+        [
+            xyz -> pi * cos(pi * xyz[1]) * sin(pi * xyz[2]),
+            xyz -> pi * sin(pi * xyz[1]) * cos(pi * xyz[2]),
+            xyz ->
+                pi * cos(pi * xyz[1]) * sin(pi * xyz[2]) +
+                pi * sin(pi * xyz[1]) * cos(pi * xyz[2]),
+        ],
+        (1.99, 2.01),
+        (0.99, 2.01),
+    ),
+]
 
-    delta, l2, energy =
-        MinX.convergence_rate(2, Elastic, forcing, boundary, solution, dsolution)
+@testset "Convergence rate tests" begin
+    function convergence_test(test::ConvergenceTest)
+        delta, l2norm, energy = MinX.convergence_rate(
+            test.dimension,
+            test.element_type,
+            test.forcing,
+            test.fixed_boundary,
+            test.solution,
+            test.derivatives,
+        )
+        @test first(test.l2norm) <
+              last(MinX.convergence_rates(delta, l2norm)) <
+              last(test.l2norm)
+        @test first(test.energy) <
+              last(MinX.convergence_rates(delta, energy)) <
+              last(test.energy)
+    end
 
-    @test 1.99 < last(MinX.convergence_rates(delta, l2)) < 2.01
-    @test 0.99 < last(MinX.convergence_rates(delta, energy)) < 2.01
+    map(convergence_test, convergence_tests)
 end
