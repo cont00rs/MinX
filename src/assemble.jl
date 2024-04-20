@@ -107,8 +107,7 @@ function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
     dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
 
-    kludge = element.eltype == Elastic ? Dim == 2 ? 3 : 1 : Dim
-    du = zeros(kludge, length(elements(mesh)))
+    du = zeros(size(shape_dfn(element), 1), length(elements(mesh)))
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
         dofs!(dofs, mesh, nodes)
