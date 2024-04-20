@@ -29,9 +29,7 @@ function assemble(mesh::Mesh{Dim}, element) where {Dim}
 
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
 
-    # XXX: Handle dofs per node at compile time. This should be handled through
-    # the type system, not manually with ternaries or other branching.
-    dpn = element.eltype == Elastic ? Dim : 1
+    dpn = dofs_per_node(element)
     dofs = zeros(Int, dpn, length(shape_fn(element)))
 
     # XXX: Hardcoded, there are no quadrature loops yet.
@@ -54,7 +52,7 @@ end
 function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dpn = element.eltype == Elastic ? Dim : 1
+    dpn = dofs_per_node(element)
     dofs = zeros(Int, dpn, length(N))
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
@@ -93,7 +91,7 @@ end
 
 # Interpolate a state vector onto quadrature points
 function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim}
-    dpn = element.eltype == Elastic ? Dim : 1
+    dpn = dofs_per_node(element)
     interp = zeros(dpn, length(elements(mesh)))
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
@@ -108,7 +106,7 @@ end
 
 # Generate derivative of state at quadrature points
 function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
-    dpn = element.eltype == Elastic ? Dim == 2 ? 2 : 1 : 1
+    dpn = dofs_per_node(element)
     B = shape_dfn(element)
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
     dofs = zeros(Int, dpn, length(shape_fn(element)))

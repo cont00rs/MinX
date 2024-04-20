@@ -22,12 +22,15 @@ struct Element
     K::AbstractMatrix
     # The type of element
     eltype::ElementType
+    # The basis spanned by the element, e.g. dofs per node information
+    basis::Basis
 end
 
 shape_fn(element) = element.N
 shape_dfn(element) = element.B
 measure(element::Element) = det(element.J)
 stencil(element) = element.K
+dofs_per_node(element::Element) = dofs_per_node(element.basis)
 
 shape_function(x::Real) = [(1.0 - x) / 2, (1 + x) / 2]
 shape_dfunction(_::Real) = [-0.5, +0.5]
@@ -100,5 +103,9 @@ function element_matrix(eltype::ElementType, mesh::Mesh{Dim}) where {Dim}
 
     # Element matrix
     K = det(J) * B' * D * B
-    return Element(N, B, J, D, K, eltype)
+
+    # The spanned basis
+    basis = Basis(eltype == Elastic ? Dim : 1)
+
+    return Element(N, B, J, D, K, eltype, basis)
 end
