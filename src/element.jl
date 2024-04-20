@@ -24,6 +24,8 @@ struct Element
     eltype::ElementType
     # The basis spanned by the element, e.g. dofs per node information
     basis::Basis
+    # Quadrature for the integration
+    quadrature::Quadrature
 end
 
 shape_fn(element) = element.N
@@ -31,6 +33,8 @@ shape_dfn(element) = element.B
 measure(element::Element) = det(element.J)
 stencil(element) = element.K
 dofs_per_node(element::Element) = dofs_per_node(element.basis)
+quadrature(element::Element) = element.quadrature
+
 
 shape_function(x::Real) = [(1.0 - x) / 2, (1 + x) / 2]
 shape_dfunction(_::Real) = [-0.5, +0.5]
@@ -39,28 +43,32 @@ shape_dfunction(_::Real) = [-0.5, +0.5]
 # from the cartesian product of arrays.
 collapser = x -> Base.product(x...) .|> prod |> SMatrix{1,2^length(x)}
 
-function shape_function(dim::Integer, x = 0.0, y = 0.0, z = 0.0)
-    funs = map(shape_function, [x, y, z][1:dim])
-    return collapser(funs)
+function shape_function(xyz)
+    return collapser(map(shape_function, xyz))
 end
 
-function shape_dfunction(dim::Integer, x = 0.0, y = 0.0, z = 0.0)
-    xyz = [x, y, z][1:dim]
+function shape_dfunction(xyz)
     # A helper that selects the derivative of the shape function for the
     # "diagonal" entries. These entries correspond to the dimension for which
     # the derivative is evaluated.
     # XXX: Make this less dense.
     f_or_df = (diag, x) -> diag ? shape_dfunction(x) : shape_function(x)
-    dfuns = [[f_or_df(d == i, co) for (i, co) in enumerate(xyz)] for d = 1:dim]
+    dfuns = [[f_or_df(d == i, co) for (i, co) in enumerate(xyz)] for d = 1:length(xyz)]
     return vcat(map(x -> collapser(x), dfuns)...)
 end
 
 function element_matrix(eltype::ElementType, mesh::Mesh{Dim}) where {Dim}
     @assert 1 <= Dim <= 3 "Invalid dimension."
+
+    # The considered quadrature rule.
+    quadrature = Quadrature(Dim, 1)
+
     # Shape fun
-    N = shape_function(Dim)
+    N = shape_function(first(locations(quadrature)))
+
     # Shape fun derivative
-    b = shape_dfunction(Dim)
+    b = shape_dfunction(first(locations(quadrature)))
+
     # All elements have the same size, just use the first one here.
     J = b * measure(mesh, tuple(ones(Dim)...))
     B = inv(J) * b
@@ -107,5 +115,6 @@ function element_matrix(eltype::ElementType, mesh::Mesh{Dim}) where {Dim}
     # The spanned basis
     basis = Basis(eltype == Elastic ? Dim : 1)
 
-    return Element(N, B, J, D, K, eltype, basis)
+    # Pack up all information within the element struct.
+    return Element(N, B, J, D, K, eltype, basis, quadrature)
 end

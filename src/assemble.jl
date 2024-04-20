@@ -29,10 +29,10 @@ function assemble(mesh::Mesh{Dim}, element) where {Dim}
     vals = zeros(nnz)
 
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
+    dofs = zeros(MMatrix{dofs_per_node(element),length(shape_fn(element)),Int})
 
     # XXX: Hardcoded, there are no quadrature loops yet.
-    quadrature_weight = 2^Dim
+    quadrature_weight = first(weights(quadrature(element)))
 
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
@@ -51,7 +51,7 @@ end
 function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
+    dofs = zeros(MMatrix{dofs_per_node(element),length(shape_fn(element)),Int})
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
 
@@ -59,7 +59,7 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     vals = zeros(nnz)
 
     # XXX: Hardcoded, there are no quadrature loops yet.
-    quadrature_weight = 2^Dim
+    quadrature_weight = first(weights(quadrature(element)))
 
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
@@ -92,7 +92,7 @@ function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim
     interp = zeros(dofs_per_node(element), length(elements(mesh)))
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
+    dofs = zeros(MMatrix{dofs_per_node(element),length(shape_fn(element)),Int})
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
         dofs!(dofs, mesh, nodes)
@@ -105,7 +105,7 @@ end
 function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
     B = shape_dfn(element)
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
+    dofs = zeros(MMatrix{dofs_per_node(element),length(shape_fn(element)),Int})
 
     du = zeros(size(shape_dfn(element), 1), length(elements(mesh)))
     for (i, el) in enumerate(elements(mesh))

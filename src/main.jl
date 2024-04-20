@@ -6,10 +6,10 @@ export fix!, solve, prescribe
 dof(mesh, node, dpn) = LinearIndices((dpn, Tuple(mesh.nelems .+ 1)...))[node]
 
 function dofs!(
-    array::MMatrix{Dpn, N, T},
+    array::MMatrix{Dpn,N,T},
     mesh::Mesh{Dim},
     nodes::AbstractVector{CartesianIndex{Dim}},
-) where {Dpn,N,T,Dim,}
+) where {Dpn,N,T,Dim}
     # For scalar field data is aligned as: Matrix(nx, ny)
     # For vector field data is aligned as: Matirx(2, nx, ny)
     # The node remains the same cartesian index, (ni, nj)
