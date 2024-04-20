@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export fix!, solve, calculate_error, prescribe
+export fix!, solve, prescribe
 
 # XXX: The `dof`, `dofs!` routines only consider scalar problems yet.
 # XXX: Probably want to store `LinearIndices` instance somewhere to prevent reallocs.

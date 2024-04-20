@@ -12,7 +12,6 @@ function repeat!(array, entries)
 end
 
 function tile!(array, entries)
-    n = div(length(array), length(entries))
     for (i, entry) in enumerate(entries)
         array[i:length(entries):end] .= entry
     end
@@ -48,7 +47,7 @@ function assemble(mesh::Mesh{Dim}, element) where {Dim}
         vals[slice] = Ke * quadrature_weight
     end
 
-    K = sparse(rows, cols, vals)
+    return sparse(rows, cols, vals)
 end
 
 # Assemble some function onto mesh nodes
@@ -59,7 +58,6 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     dofs = zeros(Int, dpn, length(N))
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
-    dx = measure(element)
 
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
@@ -78,7 +76,7 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
         vals[slice] = fun(N * xyz) * N * det(element.J) * quadrature_weight
     end
 
-    F = Vector(sparsevec(cols, vals))
+    return Vector(sparsevec(cols, vals))
 end
 
 # Interpolate some function onto quadrature points
