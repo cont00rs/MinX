@@ -1,6 +1,7 @@
 using LinearAlgebra
 using SparseArrays
 using Statistics: mean
+using StaticArrays: MMatrix
 
 export assemble, integrate, interpolate, derivative
 
@@ -28,16 +29,14 @@ function assemble(mesh::Mesh{Dim}, element) where {Dim}
     vals = zeros(nnz)
 
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-
-    dpn = dofs_per_node(element)
-    dofs = zeros(Int, dpn, length(shape_fn(element)))
+    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
 
     # XXX: Hardcoded, there are no quadrature loops yet.
     quadrature_weight = 2^Dim
 
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes, dpn)
+        dofs!(dofs, mesh, nodes)
 
         slice = (1+(i-1)*length(Ke)):i*length(Ke)
         @views repeat!(rows[slice], vec(dofs))
@@ -52,8 +51,7 @@ end
 function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dpn = dofs_per_node(element)
-    dofs = zeros(Int, dpn, length(N))
+    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
 
@@ -65,7 +63,7 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
 
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes, dpn)
+        dofs!(dofs, mesh, nodes)
 
         slice = (1+(i-1)*length(dofs)):i*length(dofs)
         cols[slice] = dofs
@@ -91,14 +89,13 @@ end
 
 # Interpolate a state vector onto quadrature points
 function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim}
-    dpn = dofs_per_node(element)
-    interp = zeros(dpn, length(elements(mesh)))
+    interp = zeros(dofs_per_node(element), length(elements(mesh)))
     N = shape_fn(element)
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(Int, dpn, length(N))
+    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes, dpn)
+        dofs!(dofs, mesh, nodes)
         interp[:, i] .= state[dofs] * N'
     end
     return interp
@@ -106,16 +103,15 @@ end
 
 # Generate derivative of state at quadrature points
 function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
-    dpn = dofs_per_node(element)
     B = shape_dfn(element)
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-    dofs = zeros(Int, dpn, length(shape_fn(element)))
+    dofs = zeros(MMatrix{dofs_per_node(element), length(shape_fn(element)), Int})
 
     kludge = element.eltype == Elastic ? Dim == 2 ? 3 : 1 : Dim
     du = zeros(kludge, length(elements(mesh)))
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes, dpn)
+        dofs!(dofs, mesh, nodes)
         du[:, i] .= B * reshape(state[dofs], :)
     end
     return du
