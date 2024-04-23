@@ -1,39 +1,33 @@
-export Material, MaterialType, Heat, Elastic, type
-export heat, elastic
+export AbstractMaterial
+export Heat, Elastic
 
-# XXX: This enum is only used to determine if B should remain B,
-# or become expanded towards BB. It seems there would be better ways
-# to encode that that are not directly based on the material type?
-@enum MaterialType begin
-    Heat
-    Elastic
+abstract type AbstractMaterial end
+
+struct Heat{T<:Number} <: AbstractMaterial
+    kappa::T
 end
 
-struct Material
-    type::MaterialType
-    constitutive::Function
+struct Elastic{T<:Number} <: AbstractMaterial
+    E::T
+    nu::T
+    plane_strain::Bool
 end
 
-function heat(kappa::Number)
-    constitutive(dim) = kappa * Matrix(I, dim, dim)
-    return Material(Heat, constitutive)
+function constitutive(material::Heat, ::Mesh{Dim}) where {Dim}
+    return material.kappa * Matrix(I, Dim, Dim)
 end
 
-function elastic(E::Number, nu::Number, plane_strain = true)
-    # XXX: If the situation appears where constitutive needs to be
-    # reevaluated while assembling, the if/else should be rearranged.
-    function constitutive(dim)
-        if dim == 1
-            return E * Matrix(I, dim, dim)
-        elseif dim == 2 && plane_strain
-            return E / ((1 + nu) * (1 - 2 * nu)) *
-                   [[1 - nu nu 0]; [nu 1 - nu 0]; [0 0 (1 - 2 * nu) / 2]]
-        elseif dim == 2
-            return E / (1 - nu^2) * [[1 nu 0]; [nu 1 0]; [0 0 (1 - nu) / 2]]
-        end
+function constitutive(material::Elastic, ::Mesh{Dim}) where {Dim}
+    E = material.E
+    nu = material.nu
+    plane_strain = material.plane_strain
+
+    if Dim == 1
+        return E * Matrix(I, Dim, Dim)
+    elseif Dim == 2 && plane_strain
+        return E / ((1 + nu) * (1 - 2 * nu)) *
+               [[1 - nu nu 0]; [nu 1 - nu 0]; [0 0 (1 - 2 * nu) / 2]]
+    elseif Dim == 2
+        return E / (1 - nu^2) * [[1 nu 0]; [nu 1 0]; [0 0 (1 - nu) / 2]]
     end
-    return Material(Elastic, constitutive)
 end
-
-type(m::Material) = m.type
-constitutive(m::Material, dim) = m.constitutive(dim)

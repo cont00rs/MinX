@@ -57,7 +57,7 @@ function convergence_rate(dim, material, forcing, boundary, f, df)
     for (i, nel) in enumerate(nels)
         mesh = Mesh(tuple(ones(dim)...), tuple((ones(dim) .* nel)...))
         Ke = element_matrix(material, mesh)
-        dpn = dofs_per_node(Ke)
+        dpn = dofs_per_node(Ke, mesh)
 
         # Filter prescribed boundary nodes.
         fixed = prescribe(mesh, Ke, dpn, boundary)

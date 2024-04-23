@@ -1,7 +1,7 @@
 using LinearAlgebra
 using StaticArrays
 
-export Element, element_matrix
+export Element, element_matrix, dofs_per_node
 
 struct Element
     # Shape function
@@ -15,9 +15,7 @@ struct Element
     # Element matrix
     K::AbstractMatrix
     # The type of element, i.e. material
-    material::Material
-    # The basis spanned by the element, e.g. dofs per node information
-    basis::Basis
+    material::AbstractMaterial
     # Quadrature for the integration
     quadrature::Quadrature
 end
@@ -26,9 +24,12 @@ shape_fn(element) = element.N
 shape_dfn(element) = element.B
 measure(element::Element) = det(element.J)
 stencil(element) = element.K
-dofs_per_node(element::Element) = dofs_per_node(element.basis)
-quadrature(element::Element) = element.quadrature
 
+dofs_per_node(element::Element, mesh) = dofs_per_node(element.material, mesh)
+dofs_per_node(::Heat, ::Mesh{Dim}) where {Dim} = 1
+dofs_per_node(::Elastic, ::Mesh{Dim}) where {Dim} = Dim
+
+quadrature(element::Element) = element.quadrature
 
 shape_function(x::Real) = [(1.0 - x) / 2, (1 + x) / 2]
 shape_dfunction(_::Real) = [-0.5, +0.5]
@@ -51,7 +52,23 @@ function shape_dfunction(xyz)
     return vcat(map(x -> collapser(x), dfuns)...)
 end
 
-function element_matrix(material::Material, mesh::Mesh{Dim}) where {Dim}
+# Expand B to "BB" for vector elements, include cross terms.
+expand(::Heat, ::Mesh{Dim}, B) where {Dim} = B
+
+function expand(::Elastic, ::Mesh{Dim}, B) where {Dim}
+    if Dim == 1
+        BB = B
+    elseif Dim == 2
+        BB = zeros(3, 8)
+        BB[1, 1:2:end] = B[1, :]
+        BB[3, 2:2:end] = B[1, :]
+        BB[2, 2:2:end] = B[2, :]
+        BB[3, 1:2:end] = B[2, :]
+    end
+    return BB
+end
+
+function element_matrix(material::AbstractMaterial, mesh::Mesh{Dim}) where {Dim}
     @assert 1 <= Dim <= 3 "Invalid dimension."
 
     # The considered quadrature rule.
@@ -66,29 +83,13 @@ function element_matrix(material::Material, mesh::Mesh{Dim}) where {Dim}
     # All elements have the same size, just use the first one here.
     J = b * measure(mesh, tuple(ones(Dim)...))
     B = inv(J) * b
+    B = expand(material, mesh, B)
 
-    # XXX: The expansion of B should probably not be tied to the element type
-    # directly. This should be deferred from another type/struct? Ideally this
-    # is handled through some form of dispatch as well.
-    if type(material) == Elastic && Dim == 2
-        BB = zeros(3, 8)
-        BB[1, 1:2:end] = B[1, :]
-        BB[3, 2:2:end] = B[1, :]
-        BB[2, 2:2:end] = B[2, :]
-        BB[3, 1:2:end] = B[2, :]
-        B = BB
-    end
-
-    D = constitutive(material, Dim)
+    D = constitutive(material, mesh)
 
     # Element matrix
     K = det(J) * B' * D * B
 
-    # The spanned basis
-    # XXX: It feels backward that this extracts information from material?
-    #      Should this information not be included in another way?
-    basis = Basis(type(material) == Elastic ? Dim : 1)
-
     # Pack up all information within the element struct.
-    return Element(N, B, J, D, K, material, basis, quadrature)
+    return Element(N, B, J, D, K, material, quadrature)
 end
