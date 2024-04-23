@@ -3,7 +3,7 @@ using MinX
 
 
 struct ConvergenceTest
-    material::Material
+    material::AbstractMaterial
     dimension::Integer
     forcing::Function
     fixed_boundary::Function
@@ -29,7 +29,7 @@ forcing_elastic_2d(lambda, mu) =
 
 convergence_tests = [
     ConvergenceTest(
-        heat(1),
+        Heat(1),
         1,
         xyz -> sin(2 * pi * xyz[1]) * (2 * pi)^2,
         x -> isapprox(x, 0) || isapprox(x, 1),
@@ -39,7 +39,7 @@ convergence_tests = [
         (0.99, 2.01),
     ),
     ConvergenceTest(
-        heat(1),
+        Heat(1),
         2,
         xyz -> sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2,
         (x, y) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0,
@@ -52,7 +52,7 @@ convergence_tests = [
         (0.99, 2.01),
     ),
     ConvergenceTest(
-        heat(1),
+        Heat(1),
         3,
         xyz ->
             sin(pi * xyz[1]) * pi^2 * sin(pi * xyz[2]) * 2.0 * sin(pi * xyz[3]) * 1.5,
@@ -67,7 +67,7 @@ convergence_tests = [
         (0.99, 2.01),
     ),
     ConvergenceTest(
-        elastic(1, 0),
+        Elastic(1, 0, false),
         1,
         xyz -> xyz[1],
         x -> isapprox(x, 0),
@@ -79,7 +79,7 @@ convergence_tests = [
     ConvergenceTest(
         # https://doi.org/10.1007/s00466-023-02282-2
         # TODO: Also implement 'divergent free' example from this paper.
-        elastic(2.5, 0.25, true),
+        Elastic(2.5, 0.25, true),
         2,
         forcing_elastic_2d(1, 1),
         (x, y) -> x ≈ 0.0 || x ≈ 1.0 || y ≈ 0.0 || y ≈ 1.0,
