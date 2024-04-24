@@ -1,6 +1,7 @@
 using StaticArrays
+using Printf
 
-export Mesh, elements, nodes, coords
+export Mesh, elements, nodes, coords, boundary
 
 struct Mesh{Dim}
     length::SVector{Dim,Float64}
@@ -12,25 +13,34 @@ struct Mesh{Dim}
 end
 
 function Mesh(length::NTuple{Dim}, nelems::NTuple{Dim}) where {Dim}
-    return Mesh(length, nelems, ntuple(x -> 1, Dim), ntuple(x -> 1, Dim))
+    return Mesh(
+        length,
+        nelems,
+        ntuple(x -> 1, Dim),
+        ntuple(x -> 1, Dim),
+        ntuple(x -> 1, Dim),
+    )
 end
 
-ranges_from_zip(x...) = tuple(splat(StepRange).(zip(x...))...)
+function ranges_from_zip(x...)
+    range = length(x) == 2 ? UnitRange : StepRange
+    tuple(splat(range).(zip(x...))...)
+end
 
 function Mesh(
     length::NTuple{Dim},
     nelems::NTuple{Dim},
     origin::NTuple{Dim},
     offset::NTuple{Dim},
+    node_offsets::NTuple{Dim},
 ) where {Dim}
     length = SVector{Dim,Float64}(length)
     nelems = SVector{Dim,Int}(nelems)
     dx = SVector{Dim,Float64}(length ./ nelems)
 
     elements = CartesianIndices(ranges_from_zip(origin, offset, nelems))
-    nodes = CartesianIndices(ranges_from_zip(origin, offset, nelems .+ 1))
-
-    node_offsets = CartesianIndices(ntuple(x -> 0:1, Dim))
+    nodes = CartesianIndices(ranges_from_zip(origin, offset, nelems .+ node_offsets))
+    node_offsets = CartesianIndices(ranges_from_zip(ntuple(x -> 0, Dim), node_offsets))
 
     Mesh(length, nelems, dx, elements, nodes, node_offsets)
 end
@@ -66,4 +76,57 @@ function measure(mesh::Mesh{Dim}, ijk) where {Dim}
     measure = reshape(Base.product(dxs...) .|> collect, (2^Dim))
     # Convert from Vector{Vector{...}} to Matrix{...}.
     return permutedims(reduce(hcat, measure))
+end
+
+# Create an implicit boundary represention of one of the mesh's sides.
+function boundary(mesh::Mesh{Dim}, side) where {Dim}
+    @assert 0 < Dim < 4 "Unsupported mesh dimension"
+
+    known_sides = (:left, :right, :bottom, :top, :front, :back)
+    msg = @sprintf("Unknown boundary: ':%s', choose from: %s", side, known_sides)
+    @assert side in known_sides msg
+
+    length = tuple(mesh.length...)
+
+    if Dim == 1
+        nelems = side == :left ? (1,) : (mesh.nelems[1] + 1,)
+        origin = side == :left ? (1,) : (mesh.nelems[1] + 1,)
+        offset = (1,)
+        node_offsets = (0,)
+    elseif Dim == 2
+        # Extend by one point, these indices fall just outside the mesh.
+        nx = mesh.nelems[1] + Int(side == :right)
+        ny = mesh.nelems[2] + Int(side == :top)
+        nelems = (nx, ny)
+
+        # Shift origins for top/right boundaries.
+        ox = side == :right ? nx : 1
+        oy = side == :top ? ny : 1
+        origin = (ox, oy)
+
+        offx = side in (:top, :bottom)
+        offy = side in (:left, :right)
+        # StepRange step to infinite results in no offsets.
+        offset = (offx ? 1 : typemax(Int), offy ? 1 : typemax(Int))
+        node_offsets = (offx, offy)
+    elseif Dim == 3
+        nx = mesh.nelems[1] + Int(side == :right)
+        ny = mesh.nelems[2] + Int(side == :back)
+        nz = mesh.nelems[3] + Int(side == :top)
+        nelems = (nx, ny, nz)
+
+        ox = side == :right ? nx : 1
+        oy = side == :back ? ny : 1
+        oz = side == :top ? nz : 1
+        origin = (ox, oy, oz)
+
+        offx = side in (:top, :bottom, :front, :back)
+        offy = side in (:top, :bottom, :left, :right)
+        offz = side in (:left, :right, :front, :back)
+        # StepRange step to infinite results in no offsets.
+        offset = (offx ? 1 : typemax(Int), offy ? 1 : typemax(Int), offz ? 1 : typemax(Int))
+        node_offsets = (offx, offy, offz)
+    end
+
+    return Mesh(length, nelems, origin, offset, node_offsets)
 end
