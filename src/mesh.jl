@@ -6,14 +6,33 @@ struct Mesh{Dim}
     length::SVector{Dim,Float64}
     nelems::SVector{Dim,Int}
     dx::SVector{Dim,Float64}
+    elements::CartesianIndices{Dim}
+    nodes::CartesianIndices{Dim}
+    node_offsets::CartesianIndices{Dim}
 end
 
-# Constructor passing tuples for nelems and length.
 function Mesh(length::NTuple{Dim}, nelems::NTuple{Dim}) where {Dim}
+    return Mesh(length, nelems, ntuple(x -> 1, Dim), ntuple(x -> 1, Dim))
+end
+
+ranges_from_zip(x...) = tuple(splat(StepRange).(zip(x...))...)
+
+function Mesh(
+    length::NTuple{Dim},
+    nelems::NTuple{Dim},
+    origin::NTuple{Dim},
+    offset::NTuple{Dim},
+) where {Dim}
     length = SVector{Dim,Float64}(length)
     nelems = SVector{Dim,Int}(nelems)
     dx = SVector{Dim,Float64}(length ./ nelems)
-    Mesh(length, nelems, dx)
+
+    elements = CartesianIndices(ranges_from_zip(origin, offset, nelems))
+    nodes = CartesianIndices(ranges_from_zip(origin, offset, nelems .+ 1))
+
+    node_offsets = CartesianIndices(ntuple(x -> 0:1, Dim))
+
+    Mesh(length, nelems, dx, elements, nodes, node_offsets)
 end
 
 # Formatting for Mesh struct.
@@ -22,9 +41,9 @@ function Base.show(io::IO, m::Mesh{Dim}) where {Dim}
 end
 
 # TODO: Add dispatch on basis type, e.g. P1, P2.
-# Iterators over mesh elements, nodes using CartesianIndices
-elements(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems))
-nodes(mesh::Mesh) = CartesianIndices(Tuple(mesh.nelems .+ 1))
+elements(mesh::Mesh) = mesh.elements
+nodes(mesh::Mesh) = mesh.nodes
+node_offsets(mesh::Mesh) = mesh.node_offsets
 
 # Extract all linear node indices for element ijk.
 function nodes!(
@@ -32,7 +51,7 @@ function nodes!(
     mesh::Mesh{Dim},
     ijk,
 ) where {Dim}
-    for (i, offset) in enumerate(CartesianIndices(ntuple(x -> 0:1, Dim)))
+    for (i, offset) in enumerate(node_offsets(mesh))
         array[i] = ijk + offset
     end
 end
