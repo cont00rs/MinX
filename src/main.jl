@@ -43,7 +43,7 @@ prescribe(mesh, element, dpn, predicate) =
 
 function solve(mesh, Ke, forcing, fixed)
     K = assemble(mesh, Ke)
-    f = integrate(mesh, Ke, forcing)
+    f = integrate(mesh, dofs_per_node(Ke, mesh), forcing)
     fix!(K, f, fixed)
 
     u = K \ f

@@ -28,11 +28,21 @@ function assemble(mesh::Mesh{Dim}, element) where {Dim}
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
+    # XXX: Hardcoded, there are no quadrature loops yet.
+    quadrature = Quadrature(element_dimension(mesh), 1)
+    quadrature_weight = first(weights(quadrature))
+    quadrature_xyz = first(locations(quadrature))
+
+    # TODO: should we compute Ke here as function of quadrature?
+    # So have a function that is like element_matrix(el::Element, quadrature_xyz)
+    # And then also implement the quadrature loop here to be more complete?
+
+    J = jacobian(mesh, quadrature_xyz)
+    weight = det(J) * quadrature_weight
+    Ke = Ke * weight
+
     nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
     dofs = zeros(MMatrix{dofs_per_node(element, mesh),length(shape_fn(element)),Int})
-
-    # XXX: Hardcoded, there are no quadrature loops yet.
-    quadrature_weight = first(weights(quadrature(element)))
 
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
@@ -41,25 +51,31 @@ function assemble(mesh::Mesh{Dim}, element) where {Dim}
         slice = (1+(i-1)*length(Ke)):i*length(Ke)
         @views repeat!(rows[slice], vec(dofs))
         @views tile!(cols[slice], vec(dofs))
-        vals[slice] = Ke * quadrature_weight
+        vals[slice] = Ke
     end
 
     return sparse(rows, cols, vals)
 end
 
 # Assemble some function onto mesh nodes
-function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
-    N = shape_fn(element)
+function integrate(mesh::Mesh{Dim}, dpn, fun) where {Dim}
+
+    # XXX: Hardcoded, there are no quadrature loops yet.
+    quadrature = Quadrature(element_dimension(mesh), 1)
+    quadrature_weight = first(weights(quadrature))
+    quadrature_xyz = first(locations(quadrature))
+
+    N = shape_function(quadrature_xyz)
+    J = jacobian(mesh, quadrature_xyz)
+    weight = det(J) * quadrature_weight
+
     nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(MMatrix{dofs_per_node(element, mesh),length(shape_fn(element)),Int})
+    dofs = zeros(MMatrix{dpn,length(N),Int})
     xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
 
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
-
-    # XXX: Hardcoded, there are no quadrature loops yet.
-    quadrature_weight = first(weights(quadrature(element)))
 
     for (i, el) in enumerate(elements(mesh))
         nodes!(nodes, mesh, el)
@@ -69,7 +85,7 @@ function integrate(mesh::Mesh{Dim}, element, fun) where {Dim}
         cols[slice] = dofs
 
         xyz[:, :] = measure(mesh, el)
-        vals[slice] = fun(N * xyz) * N * det(element.J) * quadrature_weight
+        vals[slice] = fun(N * xyz) * N * weight
     end
 
     return Vector(sparsevec(cols, vals))

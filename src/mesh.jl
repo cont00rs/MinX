@@ -9,6 +9,7 @@ struct Mesh{Dim}
     dx::SVector{Dim,Float64}
     elements::CartesianIndices{Dim}
     nodes::CartesianIndices{Dim}
+    offsets::SVector{Dim,Int}
     node_offsets::CartesianIndices{Dim}
 end
 
@@ -37,12 +38,13 @@ function Mesh(
     length = SVector{Dim,Float64}(length)
     nelems = SVector{Dim,Int}(nelems)
     dx = SVector{Dim,Float64}(length ./ nelems)
+    offset = SVector{Dim,Int}(offset)
 
     elements = CartesianIndices(ranges_from_zip(origin, offset, nelems))
     nodes = CartesianIndices(ranges_from_zip(origin, offset, nelems .+ node_offsets))
     node_offsets = CartesianIndices(ranges_from_zip(ntuple(x -> 0, Dim), node_offsets))
 
-    Mesh(length, nelems, dx, elements, nodes, node_offsets)
+    Mesh(length, nelems, dx, elements, nodes, offset, node_offsets)
 end
 
 # Formatting for Mesh struct.
@@ -54,6 +56,8 @@ end
 elements(mesh::Mesh) = mesh.elements
 nodes(mesh::Mesh) = mesh.nodes
 node_offsets(mesh::Mesh) = mesh.node_offsets
+
+element_dimension(mesh::Mesh) = sum(mesh.offsets .!= typemax(Int))
 
 # Extract all linear node indices for element ijk.
 function nodes!(
@@ -70,10 +74,10 @@ end
 coords(mesh, node::CartesianIndex) = (Tuple(node) .- 1) .* mesh.dx
 
 # Returns the coordinates of all nodes of the element.
-function measure(mesh::Mesh{Dim}, ijk) where {Dim}
+function measure(mesh::Mesh, ijk)
     # XXX: Assumes linear elements
     dxs = [[(i - 1) * dx i * dx] for (i, dx) in zip(Tuple(ijk), mesh.dx)]
-    measure = reshape(Base.product(dxs...) .|> collect, (2^Dim))
+    measure = reshape(Base.product(dxs...) .|> collect, (2^element_dimension(mesh)))
     # Convert from Vector{Vector{...}} to Matrix{...}.
     return permutedims(reduce(hcat, measure))
 end

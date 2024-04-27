@@ -68,6 +68,12 @@ function expand(::Elastic, ::Mesh{Dim}, B) where {Dim}
     return BB
 end
 
+function jacobian(mesh, xyz)
+    B = shape_dfunction(xyz)
+    XYZ = measure(mesh, ntuple(x -> 1, element_dimension(mesh)))
+    return B * XYZ
+end
+
 function element_matrix(material::AbstractMaterial, mesh::Mesh{Dim}) where {Dim}
     @assert 1 <= Dim <= 3 "Invalid dimension."
 
@@ -81,14 +87,15 @@ function element_matrix(material::AbstractMaterial, mesh::Mesh{Dim}) where {Dim}
     b = shape_dfunction(first(locations(quadrature)))
 
     # All elements have the same size, just use the first one here.
-    J = b * measure(mesh, tuple(ones(Dim)...))
+    J = jacobian(mesh, first(locations(quadrature)))
+
     B = inv(J) * b
     B = expand(material, mesh, B)
 
     D = constitutive(material, mesh)
 
     # Element matrix
-    K = det(J) * B' * D * B
+    K = B' * D * B
 
     # Pack up all information within the element struct.
     return Element(N, B, J, D, K, material, quadrature)
