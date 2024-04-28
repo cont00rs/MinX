@@ -56,11 +56,10 @@ function convergence_rate(dim, material, forcing, boundary, f, df)
 
     for (i, nel) in enumerate(nels)
         mesh = Mesh(tuple(ones(dim)...), tuple((ones(dim) .* nel)...))
-        Ke = element_matrix(material, mesh)
-        dpn = dofs_per_node(Ke, mesh)
+        Ke = Element(material, mesh)
 
         # Filter prescribed boundary nodes.
-        fixed = prescribe(mesh, Ke, dpn, boundary)
+        fixed = prescribe(mesh, basis(Ke), boundary)
 
         # Obtain solution field.
         u = solve(mesh, Ke, forcing, fixed)
@@ -69,23 +68,20 @@ function convergence_rate(dim, material, forcing, boundary, f, df)
         dxs[i] = min(mesh.dx...)
 
         # L2 norm.
-        # XXX: Not that elegant.
-        u_exact = zeros(dpn, nel^dim)
-        for i = 1:dpn
-            u_exact[i, :] = interpolate(mesh, Ke, f[i])
+        u_h = interpolate(mesh, u)
+        u_exact = similar(u_h)
+        for i in axes(u_exact, 1)
+            u_exact[i, :, :] = interpolate(mesh, Forcing(f[i], basis(Ke), dim))
         end
-        u_h = interpolate(mesh, Ke, u)
 
         l2_norm[i] = sqrt(sum((u_exact - u_h) .^ 2) / sum(u_exact .^ 2))
 
         # Energy norm.
-        # XXX: Even less elegant...
-        ncount = size(shape_dfn(Ke), 1)
-        du_exact = zeros(ncount, nel^dim)
-        for i = 1:ncount
-            du_exact[i, :] = interpolate(mesh, Ke, df[i])
+        du_h = derivative(mesh, basis(Ke), u)
+        du_exact = similar(du_h)
+        for i in axes(du_exact, 1)
+            du_exact[i, :, :] = interpolate(mesh, Forcing(df[i], basis(Ke), dim))
         end
-        du_h = derivative(mesh, Ke, u)
 
         # XXX: Isn't this typically combined with constitutive too?
         energy_norm[i] = sqrt(sum((du_exact - du_h) .^ 2) / sum(du_exact .^ 2))

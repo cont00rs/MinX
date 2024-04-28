@@ -20,114 +20,137 @@ end
 
 # Assemble the global 'stiffness' matrix.
 # TODO Figure out memory reuse for sparse matrix.
-function assemble(mesh::Mesh{Dim}, element) where {Dim}
-    Ke = stencil(element)
-    nnz = length(Ke) * length(elements(mesh))
+function assemble(mesh::Mesh{Dim}, element::Element) where {Dim}
+    # XXX: Deal with thermo-elastic?
+    npe = nodes_per_element(mesh)
+    dpn = dofs_per_node(element)
+    nnz_per_element = (dpn * npe)^2
 
+    nnz = nnz_per_element * length(elements(mesh))
     rows = zeros(Int, nnz)
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
-    # XXX: Hardcoded, there are no quadrature loops yet.
-    quadrature = Quadrature(element_dimension(mesh), 1)
-    quadrature_weight = first(weights(quadrature))
-    quadrature_xyz = first(locations(quadrature))
+    nodes = nodes_buffer(mesh)
+    dofs = dofs_buffer(mesh, dpn)
 
-    # TODO: should we compute Ke here as function of quadrature?
-    # So have a function that is like element_matrix(el::Element, quadrature_xyz)
-    # And then also implement the quadrature loop here to be more complete?
+    for (quad_w, quad_xyz) in quadrature(element)
+        Ke = quad_w * element_matrix(element, mesh, quad_xyz)
 
-    J = jacobian(mesh, quadrature_xyz)
-    weight = det(J) * quadrature_weight
-    Ke = Ke * weight
+        for (i, el) in enumerate(elements(mesh))
+            nodes!(nodes, mesh, el)
+            dofs!(dofs, mesh, nodes)
 
-    nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-    dofs = zeros(MMatrix{dofs_per_node(element, mesh),length(shape_fn(element)),Int})
-
-    for (i, el) in enumerate(elements(mesh))
-        nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
-
-        slice = (1+(i-1)*length(Ke)):i*length(Ke)
-        @views repeat!(rows[slice], vec(dofs))
-        @views tile!(cols[slice], vec(dofs))
-        vals[slice] = Ke
+            slice = (1+(i-1)*length(Ke)):i*length(Ke)
+            @views repeat!(rows[slice], vec(dofs))
+            @views tile!(cols[slice], vec(dofs))
+            vals[slice] += reshape(Ke, :)
+        end
     end
 
     return sparse(rows, cols, vals)
 end
 
 # Assemble some function onto mesh nodes
-function integrate(mesh::Mesh{Dim}, dpn, fun) where {Dim}
+# XXX: Only OK when element_dimension == mesh_dimension
+function integrate(mesh::Mesh{Dim}, fn::Forcing) where {Dim}
+    npe = nodes_per_element(mesh)
 
-    # XXX: Hardcoded, there are no quadrature loops yet.
-    quadrature = Quadrature(element_dimension(mesh), 1)
-    quadrature_weight = first(weights(quadrature))
-    quadrature_xyz = first(locations(quadrature))
+    nodes = nodes_buffer(mesh)
+    dofs = dofs_buffer(mesh, dofs_per_node(fn))
+    xyz = zeros(Float64, npe, Dim)
 
-    N = shape_function(quadrature_xyz)
-    J = jacobian(mesh, quadrature_xyz)
-    weight = det(J) * quadrature_weight
-
-    nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(MMatrix{dpn,length(N),Int})
-    xyz = zeros(Float64, length(N), Dim)
     nnz = length(dofs) * length(elements(mesh))
-
     cols = zeros(Int, nnz)
     vals = zeros(nnz)
 
-    for (i, el) in enumerate(elements(mesh))
-        nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
+    for (quad_w, quad_xyz) in quadrature(fn)
+        N = shape_function(quad_xyz)
+        J = jacobian(mesh, quad_xyz)
+        weight = det(J) * quad_w
 
-        slice = (1+(i-1)*length(dofs)):i*length(dofs)
-        cols[slice] = dofs
+        for (i, el) in enumerate(elements(mesh))
+            nodes!(nodes, mesh, el)
+            dofs!(dofs, mesh, nodes)
 
-        xyz[:, :] = measure(mesh, el)
-        vals[slice] = fun(N * xyz) * N * weight
+            slice = (1+(i-1)*length(dofs)):i*length(dofs)
+            cols[slice] = dofs
+
+            xyz[:, :] = measure(mesh, el)
+            vals[slice] += reshape(fn(N * xyz) * N * weight, :)
+        end
     end
 
     return Vector(sparsevec(cols, vals))
 end
 
 # Interpolate some function onto quadrature points
-function interpolate(mesh::Mesh{Dim}, element, fun) where {Dim}
-    interp = zeros(length(elements(mesh)))
-    N = shape_fn(element)
-    xyz = zeros(Float64, length(N), Dim)
-    for (i, el) in enumerate(elements(mesh))
-        xyz[:, :] = measure(mesh, el)
-        interp[i] = fun(N * xyz)
+function interpolate(mesh::Mesh{Dim}, fn::Forcing) where {Dim}
+    npe = nodes_per_element(mesh)
+    qpe = length(quadrature(fn))
+    interp = zeros(qpe, length(elements(mesh)))
+    xyz = zeros(Float64, npe, Dim)
+
+    for (qi, (quad_w, quad_xyz)) in enumerate(quadrature(fn))
+        N = shape_function(quad_xyz)
+
+        for (i, el) in enumerate(elements(mesh))
+            xyz[:, :] = measure(mesh, el)
+            interp[qi, i] += fn(N * xyz) * quad_w
+        end
     end
+
     return interp
 end
 
 # Interpolate a state vector onto quadrature points
-function interpolate(mesh::Mesh{Dim}, element, state::AbstractVector) where {Dim}
-    interp = zeros(dofs_per_node(element, mesh), length(elements(mesh)))
-    N = shape_fn(element)
-    nodes = zeros(CartesianIndex{Dim}, length(N))
-    dofs = zeros(MMatrix{dofs_per_node(element, mesh),length(shape_fn(element)),Int})
-    for (i, el) in enumerate(elements(mesh))
-        nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
-        interp[:, i] .= state[dofs] * N'
+function interpolate(mesh::Mesh{Dim}, state::AbstractVector) where {Dim}
+    # XXX: Quadrature order still hardcoded.
+    quadrature = Quadrature(element_dimension(mesh), 1)
+
+    dpn = div(length(state), length(MinX.nodes(mesh)))
+    qpe = length(locations(quadrature))
+    interp = zeros(dpn, qpe, length(elements(mesh)))
+
+    nodes = nodes_buffer(mesh)
+    dofs = dofs_buffer(mesh, dpn)
+
+    for (qi, (quad_w, quad_xyz)) in enumerate(quadrature())
+        N = shape_function(quad_xyz)
+
+        for (i, el) in enumerate(elements(mesh))
+            nodes!(nodes, mesh, el)
+            dofs!(dofs, mesh, nodes)
+            interp[:, qi, i] .+= state[dofs] * N' * quad_w
+        end
     end
+
     return interp
 end
 
 # Generate derivative of state at quadrature points
-function derivative(mesh::Mesh{Dim}, element, state) where {Dim}
-    B = shape_dfn(element)
-    nodes = zeros(CartesianIndex{Dim}, length(shape_fn(element)))
-    dofs = zeros(MMatrix{dofs_per_node(element, mesh),length(shape_fn(element)),Int})
+function derivative(
+    mesh::Mesh{Dim},
+    basis::AbstractBasis{Dpn},
+    state::AbstractVector,
+) where {Dim,Dpn}
+    # XXX: Quadrature order still hardcoded.
+    quadrature = Quadrature(element_dimension(mesh), 1)
 
-    du = zeros(size(shape_dfn(element), 1), length(elements(mesh)))
-    for (i, el) in enumerate(elements(mesh))
-        nodes!(nodes, mesh, el)
-        dofs!(dofs, mesh, nodes)
-        du[:, i] .= B * reshape(state[dofs], :)
+    qpe = length(locations(quadrature))
+    du = zeros(num_derivatives(basis, Dim), qpe, length(elements(mesh)))
+    nodes = nodes_buffer(mesh)
+    dofs = dofs_buffer(mesh, Dpn)
+
+    for (qi, (quad_w, quad_xyz)) in enumerate(quadrature())
+        B = shape_dfunction(mesh, basis, quad_xyz)
+
+        for (i, el) in enumerate(elements(mesh))
+            nodes!(nodes, mesh, el)
+            dofs!(dofs, mesh, nodes)
+            du[:, qi, i] .+= B * reshape(state[dofs], :) * quad_w
+        end
     end
+
     return du
 end

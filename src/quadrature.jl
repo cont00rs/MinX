@@ -1,4 +1,4 @@
-export Quadrature
+export Quadrature, weights, locations
 
 struct Quadrature{N,T<:Real}
     locations::AbstractVector{NTuple{N,T}}
@@ -18,6 +18,8 @@ function Quadrature(dim, order)
     weights = [2.0^dim]
     return Quadrature(locations, weights)
 end
+
+(q::Quadrature)() = zip(weights(q), locations(q))
 
 weights(q::Quadrature) = q.weights
 locations(q::Quadrature) = q.locations
