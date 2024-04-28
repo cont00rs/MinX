@@ -57,6 +57,17 @@ elements(mesh::Mesh) = mesh.elements
 nodes(mesh::Mesh) = mesh.nodes
 node_offsets(mesh::Mesh) = mesh.node_offsets
 
+# XXX: Only for P1 elements at the moment.
+nodes_per_element(::Mesh{Dim}) where {Dim} = 2^Dim
+
+function nodes_buffer(mesh::Mesh{Dim}) where {Dim}
+    return zeros(CartesianIndex{Dim}, nodes_per_element(mesh))
+end
+
+function dofs_buffer(mesh::Mesh{Dim}, dpn) where {Dim}
+    return zeros(MMatrix{dpn,nodes_per_element(mesh),Int})
+end
+
 element_dimension(mesh::Mesh) = sum(mesh.offsets .!= typemax(Int))
 
 # Extract all linear node indices for element ijk.
