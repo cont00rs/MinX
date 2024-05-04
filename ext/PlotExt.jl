@@ -1,12 +1,15 @@
-using MinX
+module PlotExt
 
-# The plotting utilities are located here and kept separately from the MinX
-# module. This avoids the explicit dependency on large plotting packages, e.g.
-# Plots.jl, or (GL,Cairo)Makie.jl. The plots can be loaded explicitly by
-# `include("src/plots.jl")` and then (seem to) rely on the plotting library in
-# the global package environment.
+using MinX
 using GLMakie
 using LaTeXStrings
+
+# TODO: Implement the plot functions as extensions, like dummy.
+# There does not seem to be a way to implement new functions,
+# so, we will simply override dummy interfaces in src/plot.jl here.
+function MinX.dummy(a::Int)
+    return a
+end
 
 function plot_convergence_rates(f, df, x)
     xs, ys = MinX.remainder_test(f, df, x)
@@ -165,4 +168,6 @@ function plot_dsolution(nelem)
     scatterlines!(xs, du, label = "Numerical")
     axislegend()
     f
+end
+
 end
