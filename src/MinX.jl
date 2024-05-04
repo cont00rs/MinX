@@ -1,5 +1,6 @@
 module MinX
 
+include("plot.jl")
 include("quadrature.jl")
 include("mesh.jl")
 include("basis.jl")
